@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
@@ -15,15 +16,22 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     "Jul", "Ago", "Set", "Out", "Nov", "Dez"
   ];
 
-  const annualStats = React.useMemo(() => {
+  const { annualStats, htCount, ftCount, totalGains, totalLosses } = React.useMemo(() => {
     const settled = bets.filter(b => b.status !== BetStatus.PENDING);
     const totalProfit = settled.reduce((acc, b) => acc + b.profit, 0);
     const totalInvested = settled.reduce((acc, b) => acc + b.stake, 0);
     const won = settled.filter(b => b.status === BetStatus.WON).length;
     
+    // Ganhos e Perdas brutos
+    const gains = settled.filter(b => b.profit > 0).reduce((acc, b) => acc + b.profit, 0);
+    const losses = settled.filter(b => b.profit < 0).reduce((acc, b) => acc + Math.abs(b.profit), 0);
+    
+    // Contagem HT / FT para o ano
+    const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
+    const ft = bets.length - ht;
+    
     // Calcula média de lucro em stakes baseada nos stakes mensais válidos
     let sumProfitInStakes = 0;
-    let monthsWithActivity = 0;
     
     for (let i = 0; i < 12; i++) {
       const monthKey = `${selectedYear}-${i}`;
@@ -33,17 +41,22 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
       
       if (monthStake > 0) {
         sumProfitInStakes += monthProfit / monthStake;
-        monthsWithActivity++;
       }
     }
 
     return {
-      totalBets: bets.length,
-      winRate: settled.length > 0 ? (won / settled.length) * 100 : 0,
-      totalProfit,
-      yield: totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0,
-      profitInStakes: sumProfitInStakes,
-      marketsCount: new Set(bets.map(b => b.market)).size
+      annualStats: {
+        totalBets: bets.length,
+        winRate: settled.length > 0 ? (won / settled.length) * 100 : 0,
+        totalProfit,
+        yield: totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0,
+        profitInStakes: sumProfitInStakes,
+        marketsCount: bets.length 
+      },
+      htCount: ht,
+      ftCount: ft,
+      totalGains: gains,
+      totalLosses: losses
     };
   }, [bets, selectedYear, monthlyStakes]);
 
@@ -62,7 +75,6 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     if (bets.length === 0) return [];
     const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    // Começa com a banca de Janeiro ou 0
     let runningBank = monthlyBankrolls[`${selectedYear}-0`] || 0;
     
     const data = [
@@ -142,24 +154,30 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
 
         <div className="lg:w-1/3 bg-slate-900 border border-slate-800 p-10 rounded-[3rem] flex flex-col justify-center group hover:border-yellow-500/30 transition-all shadow-lg">
           <p className="text-slate-500 text-sm font-black uppercase tracking-[0.25em] mb-3">Total Stakes Anuais</p>
-          <div className="flex items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
             <h3 className={`text-6xl font-black font-mono ${annualStats.profitInStakes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {annualStats.profitInStakes >= 0 ? '+' : ''}{annualStats.profitInStakes.toFixed(2)}
             </h3>
-            <div className="text-right">
-              <p className="text-3xl font-black font-mono text-white/80">
-                {annualStats.totalBets}
-              </p>
-              <p className="text-xs text-slate-500 font-black uppercase tracking-widest leading-none mt-1">Operações</p>
-            </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Mercados" value={`${annualStats.marketsCount}`} icon="fa-shop" color="text-purple-400" subtitle="Mercados explorados" />
+        <StatCard 
+          title="Mercados" 
+          value={`${annualStats.marketsCount}`} 
+          icon="fa-shop" 
+          color="text-purple-400" 
+          subtitle={`HT ${htCount} | FT ${ftCount}`} 
+        />
         <StatCard title="Win Rate" value={`${annualStats.winRate.toFixed(1)}%`} icon="fa-bullseye" color="text-blue-400" subtitle="Taxa de acerto anual" />
-        <StatCard title="Total Volume" value={`${bets.reduce((acc, b) => acc + b.stake, 0).toFixed(0)}€`} icon="fa-coins" color="text-yellow-400" subtitle="Total investido" />
+        <StatCard 
+          title="Total Volume" 
+          value={`${bets.reduce((acc, b) => acc + b.stake, 0).toFixed(0)}€`} 
+          icon="fa-coins" 
+          color="text-yellow-400" 
+          subtitle={`Ganhos: ${totalGains.toFixed(0)}€ | Perdas: ${totalLosses.toFixed(0)}€`} 
+        />
         <StatCard title="Yield Médio" value={`${annualStats.yield.toFixed(1)}%`} icon="fa-chart-line" color="text-emerald-400" subtitle="Eficiência global" />
       </div>
 
