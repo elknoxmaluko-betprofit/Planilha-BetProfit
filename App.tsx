@@ -25,6 +25,10 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   
+  const [currency, setCurrency] = useState<string>(() => {
+    return localStorage.getItem('betprofit_currency') || '€';
+  });
+
   const [monthlyStakes, setMonthlyStakes] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('betfair_monthly_stakes');
     return saved ? JSON.parse(saved) : {};
@@ -78,6 +82,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('betfair_bets', JSON.stringify(bets));
   }, [bets]);
+
+  useEffect(() => {
+    localStorage.setItem('betprofit_currency', currency);
+  }, [currency]);
 
   useEffect(() => {
     localStorage.setItem('betfair_monthly_stakes', JSON.stringify(monthlyStakes));
@@ -251,17 +259,31 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl">
+              <label className="text-xs uppercase font-black text-slate-500 tracking-widest mr-1">Moeda:</label>
+              <select 
+                className="bg-transparent border-none text-yellow-400 font-bold text-lg focus:ring-0 cursor-pointer outline-none" 
+                value={currency} 
+                onChange={(e) => setCurrency(e.target.value)}
+              >
+                <option value="€" className="bg-slate-900">€ (EUR)</option>
+                <option value="R$" className="bg-slate-900">R$ (BRL)</option>
+                <option value="$" className="bg-slate-900">$ (USD)</option>
+                <option value="£" className="bg-slate-900">£ (GBP)</option>
+              </select>
+            </div>
+
             {view !== 'annual' && (
               <>
                 <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl">
                    <label className="text-xs uppercase font-black text-slate-500 tracking-widest">Banca:</label>
                    <input type="number" className="bg-transparent border-none text-emerald-400 font-mono font-bold w-24 focus:ring-0 text-lg" value={currentMonthlyBankroll || ''} onChange={(e) => updateMonthlyBankroll(e.target.value)} />
-                   <span className="text-slate-500 text-lg">€</span>
+                   <span className="text-slate-500 text-lg">{currency}</span>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl">
                    <label className="text-xs uppercase font-black text-slate-500 tracking-widest">Stake:</label>
                    <input type="number" className="bg-transparent border-none text-yellow-400 font-mono font-bold w-24 focus:ring-0 text-lg" value={currentMonthlyStake || ''} onChange={(e) => updateMonthlyStake(e.target.value)} />
-                   <span className="text-slate-500 text-lg">€</span>
+                   <span className="text-slate-500 text-lg">{currency}</span>
                 </div>
               </>
             )}
@@ -287,18 +309,18 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {view === 'dashboard' && <Dashboard stats={stats} bets={filteredBets} allBets={bets} selectedYear={selectedDate.year} />}
-        {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} />}
-        {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} />}
-        {view === 'markets' && <MarketsView bets={filteredBets} />}
-        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => setLeaguesList([...leaguesList, l])} onDelete={(l) => setLeaguesList(leaguesList.filter(x => x !== l))} />}
-        {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} />}
-        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => setMethodologiesList([...methodologiesList, m])} onDelete={(m) => setMethodologiesList(methodologiesList.filter(x => x !== m))} />}
+        {view === 'dashboard' && <Dashboard stats={stats} bets={filteredBets} allBets={bets} selectedYear={selectedDate.year} currency={currency} />}
+        {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} currency={currency} />}
+        {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
+        {view === 'markets' && <MarketsView bets={filteredBets} currency={currency} />}
+        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => setLeaguesList([...leaguesList, l])} onDelete={(l) => setLeaguesList(leaguesList.filter(x => x !== l))} currency={currency} />}
+        {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
+        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => setMethodologiesList([...methodologiesList, m])} onDelete={(m) => setMethodologiesList(methodologiesList.filter(x => x !== m))} currency={currency} />}
         {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => setTagsList([...tagsList, t])} onDelete={(t) => setTagsList(tagsList.filter(x => x !== t))} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList }} onDataImport={handleDataImport} />}
-        {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} />}
+        {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} currency={currency} />}
 
-        {showCSVModal && <CSVImporter onImport={(newBets) => { setBets(prev => [...newBets, ...prev]); setShowCSVModal(false); setView('bets'); }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} />}
+        {showCSVModal && <CSVImporter onImport={(newBets) => { setBets(prev => [...newBets, ...prev]); setShowCSVModal(false); setView('bets'); }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
       </main>
     </div>
   );

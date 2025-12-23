@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Stats, Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
@@ -7,9 +8,10 @@ interface DashboardProps {
   bets: Bet[];
   allBets: Bet[];
   selectedYear: number;
+  currency: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, currency }) => {
   const dailyData = React.useMemo(() => {
     if (bets.length === 0) return [];
     const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -121,9 +123,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
           <div className="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-700"></div>
           <p className="text-emerald-400 text-sm font-black uppercase tracking-[0.25em] mb-3">Banca Total</p>
           <div className="flex items-baseline gap-4">
-            <h3 className="text-6xl font-black text-white font-mono">{currentTotalBankroll.toFixed(2)}€</h3>
+            <h3 className="text-6xl font-black text-white font-mono">{currentTotalBankroll.toFixed(2)}{currency}</h3>
             <span className={`text-lg font-black px-4 py-1.5 rounded-2xl border ${stats.totalProfit >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-              {stats.totalProfit >= 0 ? '+' : ''}{stats.totalProfit.toFixed(2)}€ P/L
+              {stats.totalProfit >= 0 ? '+' : ''}{stats.totalProfit.toFixed(2)}{currency} P/L
             </span>
           </div>
         </div>
@@ -153,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8">
-          <h3 className="text-xl font-bold text-white mb-8">Resultados Diários (€)</h3>
+          <h3 className="text-xl font-bold text-white mb-8">Resultados Diários ({currency})</h3>
           <div className="h-[350px]">
             {dailyData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">

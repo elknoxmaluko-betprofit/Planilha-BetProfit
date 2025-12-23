@@ -1,11 +1,13 @@
+
 import React, { useMemo } from 'react';
 import { Bet, MarketStats, BetStatus } from '../types';
 
 interface MarketsViewProps {
   bets: Bet[];
+  currency: string;
 }
 
-const MarketsView: React.FC<MarketsViewProps> = ({ bets }) => {
+const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
   const { marketStats, htProfit, ftProfit, htCount, ftCount } = useMemo(() => {
     const map: Record<string, any> = {};
     let htTotal = 0;
@@ -58,7 +60,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets }) => {
           <div>
             <p className="text-white text-xs font-black uppercase tracking-[0.2em] mb-2">Total Lucro HT</p>
             <h3 className={`text-4xl font-mono font-black ${htProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {htProfit >= 0 ? '+' : ''}{htProfit.toFixed(2)}€
+              {htProfit >= 0 ? '+' : ''}{htProfit.toFixed(2)}{currency}
             </h3>
             <p className="text-sm text-slate-400 font-bold mt-4 border-t border-slate-800 pt-3 flex items-center gap-2">
               <i className="fas fa-hashtag opacity-50"></i> {htCount} Operações
@@ -73,7 +75,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets }) => {
           <div>
             <p className="text-white text-xs font-black uppercase tracking-[0.2em] mb-2">Total Lucro FT</p>
             <h3 className={`text-4xl font-mono font-black ${ftProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {ftProfit >= 0 ? '+' : ''}{ftProfit.toFixed(2)}€
+              {ftProfit >= 0 ? '+' : ''}{ftProfit.toFixed(2)}{currency}
             </h3>
             <p className="text-sm text-slate-400 font-bold mt-4 border-t border-slate-800 pt-3 flex items-center gap-2">
               <i className="fas fa-hashtag opacity-50"></i> {ftCount} Operações
@@ -109,7 +111,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets }) => {
               <div className="text-right">
                 <p className="text-white text-xs uppercase font-black tracking-widest mb-1.5">P/L Total</p>
                 <p className={`text-2xl font-mono font-black ${market.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {market.profit >= 0 ? '+' : ''}{market.profit.toFixed(2)}€
+                  {market.profit >= 0 ? '+' : ''}{market.profit.toFixed(2)}{currency}
                 </p>
                 <p className={`text-xs font-mono font-bold ${market.roi >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'} mt-1`}>
                   {market.roi >= 0 ? '+' : ''}{market.roi.toFixed(1)}% Yield

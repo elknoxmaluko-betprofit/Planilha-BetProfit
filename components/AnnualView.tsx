@@ -8,9 +8,10 @@ interface AnnualViewProps {
   selectedYear: number;
   monthlyBankrolls: Record<string, number>;
   monthlyStakes: Record<string, number>;
+  currency: string;
 }
 
-const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBankrolls, monthlyStakes }) => {
+const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBankrolls, monthlyStakes, currency }) => {
   const months = [
     "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
     "Jul", "Ago", "Set", "Out", "Nov", "Dez"
@@ -109,13 +110,27 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
 
   const teamPerformanceData = React.useMemo(() => {
     const teamStats: Record<string, number> = {};
+    
     bets.forEach(bet => {
-      const team = bet.team || 'Desconhecido';
-      teamStats[team] = (teamStats[team] || 0) + bet.profit;
+      const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i);
+      const teamsInBet = new Set<string>();
+      
+      parts.forEach(p => {
+        const trimmed = p.trim();
+        if (trimmed && trimmed.length > 1) teamsInBet.add(trimmed);
+      });
+      
+      if (bet.team) teamsInBet.add(bet.team);
+
+      teamsInBet.forEach(team => {
+        teamStats[team] = (teamStats[team] || 0) + bet.profit;
+      });
     });
+
     const sorted = Object.entries(teamStats)
       .map(([name, profit]) => ({ name, profit: parseFloat(profit.toFixed(2)) }))
       .sort((a, b) => b.profit - a.profit);
+
     return { 
       winners: sorted.filter(t => t.profit > 0).slice(0, 5),
       losers: [...sorted].reverse().filter(t => t.profit < 0).slice(0, 5)
@@ -145,7 +160,7 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
           <div className="absolute -right-10 -top-10 w-48 h-48 bg-yellow-500/10 rounded-full blur-3xl group-hover:bg-yellow-500/20 transition-all duration-700"></div>
           <p className="text-yellow-400 text-sm font-black uppercase tracking-[0.25em] mb-3">Lucro Anual Total</p>
           <div className="flex items-baseline gap-4">
-            <h3 className="text-6xl font-black text-white font-mono">{annualStats.totalProfit.toFixed(2)}€</h3>
+            <h3 className="text-6xl font-black text-white font-mono">{annualStats.totalProfit.toFixed(2)}{currency}</h3>
             <span className={`text-lg font-black px-4 py-1.5 rounded-2xl border ${annualStats.yield >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
               {annualStats.yield.toFixed(1)}% Yield
             </span>
@@ -173,17 +188,17 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
         <StatCard title="Win Rate" value={`${annualStats.winRate.toFixed(1)}%`} icon="fa-bullseye" color="text-blue-400" subtitle="Taxa de acerto anual" />
         <StatCard 
           title="Total Volume" 
-          value={`${bets.reduce((acc, b) => acc + b.stake, 0).toFixed(0)}€`} 
+          value={`${bets.reduce((acc, b) => acc + b.stake, 0).toFixed(0)}${currency}`} 
           icon="fa-coins" 
           color="text-yellow-400" 
-          subtitle={`Ganhos: ${totalGains.toFixed(0)}€ | Perdas: ${totalLosses.toFixed(0)}€`} 
+          subtitle={`Ganhos: ${totalGains.toFixed(0)}${currency} | Perdas: ${totalLosses.toFixed(0)}${currency}`} 
         />
         <StatCard title="Yield Médio" value={`${annualStats.yield.toFixed(1)}%`} icon="fa-chart-line" color="text-emerald-400" subtitle="Eficiência global" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8">
-          <h3 className="text-xl font-bold text-white mb-8">Performance Mensal (€)</h3>
+          <h3 className="text-xl font-bold text-white mb-8">Performance Mensal ({currency})</h3>
           <div className="h-[350px]">
             {bets.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">

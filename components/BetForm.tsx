@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Bet, BetStatus, BetType } from '../types';
 
@@ -9,9 +10,10 @@ interface BetFormProps {
   tags: string[];
   leagues: string[];
   teams: string[];
+  currency: string;
 }
 
-const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, methodologies, tags, leagues, teams }) => {
+const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, methodologies, tags, leagues, teams, currency }) => {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     event: '',
@@ -120,7 +122,7 @@ const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, method
             </select>
           </div>
           <div className="space-y-3">
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Stake (€)</label>
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Stake ({currency})</label>
             <input type="number" step="0.01" className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white text-lg font-mono outline-none shadow-inner" value={formData.stake || ''} onChange={e => setFormData({ ...formData, stake: parseFloat(e.target.value) })} />
           </div>
         </div>
@@ -137,7 +139,7 @@ const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, method
         </div>
 
         <div className="space-y-3">
-          <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Resultado Final (€)</label>
+          <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Resultado Final ({currency})</label>
           <input type="number" step="0.01" className={`w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-5 font-mono font-black text-2xl outline-none transition-all shadow-inner ${formData.profit > 0 ? 'text-emerald-400 border-emerald-500/40' : formData.profit < 0 ? 'text-red-400 border-red-500/40' : 'text-white'}`} value={formData.profit || ''} onChange={e => setFormData({ ...formData, profit: parseFloat(e.target.value) || 0 })} />
         </div>
 

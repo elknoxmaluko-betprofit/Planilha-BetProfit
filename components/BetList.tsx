@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Bet, BetStatus, BetType } from '../types';
 
@@ -10,6 +11,7 @@ interface BetListProps {
   availableTags: string[];
   availableLeagues?: string[];
   availableTeams?: string[];
+  currency: string;
 }
 
 const BetList: React.FC<BetListProps> = ({ 
@@ -20,7 +22,8 @@ const BetList: React.FC<BetListProps> = ({
   availableMethodologies, 
   availableTags,
   availableLeagues = [],
-  availableTeams = []
+  availableTeams = [] ,
+  currency
 }) => {
   const [openTagMenuId, setOpenTagMenuId] = useState<string | null>(null);
 
@@ -126,10 +129,10 @@ const BetList: React.FC<BetListProps> = ({
                   </td>
                   <td className="px-8 py-6 text-center">
                     <span className={`text-[11px] font-black px-3 py-1 rounded-lg block mb-2 uppercase tracking-widest ${bet.type === BetType.BACK ? 'bg-blue-400/10 text-blue-400' : 'bg-pink-400/10 text-pink-400'}`}>{bet.type}</span>
-                    <span className="font-mono text-lg text-slate-300 font-bold">{(monthlyStake > 0 ? monthlyStake : bet.stake).toFixed(2)}€</span>
+                    <span className="font-mono text-lg text-slate-300 font-bold">{(monthlyStake > 0 ? monthlyStake : bet.stake).toFixed(2)}{currency}</span>
                   </td>
                   <td className={`px-8 py-6 text-right font-black font-mono ${bet.profit > 0 ? 'text-emerald-400' : bet.profit < 0 ? 'text-red-400' : 'text-slate-500'}`}>
-                    <div className="text-xl">{bet.profit > 0 ? '+' : ''}{bet.profit.toFixed(2)}€</div>
+                    <div className="text-xl">{bet.profit > 0 ? '+' : ''}{bet.profit.toFixed(2)}{currency}</div>
                     <div className="text-xs opacity-70 mt-1">{bet.profitPercentage.toFixed(1)}% Yield</div>
                   </td>
                   <td className="px-8 py-6 text-right">
