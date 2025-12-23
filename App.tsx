@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Bet, BetStatus, Stats } from './types';
 import Dashboard from './components/Dashboard';
@@ -9,7 +10,6 @@ import MethodologiesView from './components/MethodologiesView';
 import TagsView from './components/TagsView';
 import LeaguesView from './components/LeaguesView';
 import TeamsView from './components/TeamsView';
-import AIAssistant from './components/AIAssistant';
 import CSVImporter from './components/CSVImporter';
 import Login from './components/Login';
 import DatabaseManager from './components/DatabaseManager';
@@ -232,10 +232,6 @@ const App: React.FC = () => {
           <button onClick={() => setView('add')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'add' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-plus-circle"></i> Registar
           </button>
-        </div>
-
-        <div className="mt-8">
-           <AIAssistant bets={filteredBets} />
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-800">
