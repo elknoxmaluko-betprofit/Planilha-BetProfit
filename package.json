@@ -3,17 +3,11 @@
   "name": "betprofit-spreadsheet",
   "version": "1.0.0",
   "description": "Folha de cálculo desportiva profissional para Betfair Exchange",
-  "main": "index.tsx",
-  "scripts": {
-    "start": "serve .",
-    "build": "echo 'No build step required for ESM-based apps'"
-  },
   "keywords": [
     "trading",
     "betfair",
     "sports-betting",
     "analytics"
   ],
-  "author": "",
   "license": "MIT"
 }
