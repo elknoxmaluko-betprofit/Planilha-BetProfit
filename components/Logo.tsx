@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useId } from 'react';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -7,16 +7,21 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ size = 'md', className = '' }) => {
+  // Gera um ID único para este componente para evitar conflitos de gradiente
+  // quando múltiplos logos são renderizados (ex: header mobile vs sidebar desktop)
+  const rawId = useId();
+  const gradientId = `logo_gradient_${rawId.replace(/:/g, '')}`;
+
   const dimensions = {
-    sm: 'w-12 h-12',    // Aumentado de w-10 (40px) para w-12 (48px)
-    md: 'w-24 h-24',    // Aumentado de w-16 (64px) para w-24 (96px)
-    lg: 'w-48 h-48',    // Aumentado de w-24 (96px) para w-48 (192px)
-    xl: 'w-64 h-64'     // Novo tamanho extra grande (256px)
+    sm: 'w-12 h-12',    
+    md: 'w-24 h-24',    
+    lg: 'w-48 h-48',    
+    xl: 'w-64 h-64'     
   };
 
   return (
     <div className={`relative ${dimensions[size]} ${className} group`}>
-      {/* Efeito de Brilho de Fundo - ajustado para o novo tamanho */}
+      {/* Efeito de Brilho de Fundo */}
       <div className="absolute inset-[-10%] bg-yellow-400/20 blur-2xl rounded-full group-hover:bg-yellow-400/40 transition-all duration-700"></div>
       
       <svg 
@@ -28,7 +33,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'md', className = '' }) => {
         {/* Forma Base - Escudo/Hexágono com gradiente mais rico */}
         <path 
           d="M50 5L89.5 27.5V72.5L50 95L10.5 72.5V27.5L50 5Z" 
-          fill="url(#logo_gradient_v2)" 
+          fill={`url(#${gradientId})`} 
         />
         
         {/* Detalhe do Gráfico Ascendente dentro do B */}
@@ -55,7 +60,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'md', className = '' }) => {
         <rect x="65" y="45" width="10" height="23" rx="2" fill="#0f172a" fillOpacity="0.3" />
 
         <defs>
-          <linearGradient id="logo_gradient_v2" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
             <stop stopColor="#fde047" /> {/* yellow-300 */}
             <stop offset="0.5" stopColor="#facc15" /> {/* yellow-400 */}
             <stop offset="1" stopColor="#a16207" /> {/* yellow-800 */}

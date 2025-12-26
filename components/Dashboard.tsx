@@ -12,6 +12,14 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, currency }) => {
+  
+  // Cálculos Auxiliares
+  const { htCount, ftCount } = React.useMemo(() => {
+    const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
+    const ft = bets.length - ht;
+    return { htCount: ht, ftCount: ft };
+  }, [bets]);
+
   const dailyData = React.useMemo(() => {
     if (bets.length === 0) return [];
     const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -107,49 +115,106 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
     ].filter(d => d.value > 0);
   }, [bets]);
 
+  const currentBank = stats.monthlyBankroll + stats.totalProfit;
+
   return (
-    <div className="space-y-6 lg:space-y-10">
+    <div className="space-y-6">
       
-      {/* Cards de Topo - Compactos em Mobile/Tablet, Grandes em Desktop (lg) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
-        <StatCard 
-          title="Total Lucro" 
-          value={`${stats.totalProfit > 0 ? '+' : ''}${stats.totalProfit.toFixed(2)}${currency}`} 
-          color={stats.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"} 
-          icon="fa-coins" 
-          subValue={`${stats.roi.toFixed(1)}% ROI`}
-          subColor={stats.roi >= 0 ? "text-emerald-400" : "text-red-400"}
-        />
-        <StatCard 
-          title="Yield" 
-          value={`${stats.yield > 0 ? '+' : ''}${stats.yield.toFixed(1)}%`} 
-          color={stats.yield >= 0 ? "text-emerald-400" : "text-red-400"} 
-          icon="fa-chart-line" 
-          subValue={`${stats.profitInStakes.toFixed(1)} Stakes`}
-          subColor={stats.profitInStakes >= 0 ? "text-emerald-400" : "text-red-400"}
-        />
-        <StatCard 
-          title="Win Rate" 
-          value={`${stats.winRate.toFixed(1)}%`} 
-          color="text-blue-400" 
-          icon="fa-bullseye" 
-          subValue={`${stats.totalBets} Apostas`}
-          subColor="text-slate-400"
-        />
-        <StatCard 
-          title="Banca Atual" 
-          value={`${(stats.monthlyBankroll + stats.totalProfit).toFixed(2)}${currency}`} 
-          color="text-yellow-400" 
-          icon="fa-wallet" 
-          subValue="Previsão Fim Mês"
-          subColor="text-slate-500"
-        />
+      {/* Secção de Topo - Layout Original Restaurado */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Card Banca Total - Grande à Esquerda */}
+        <div className="lg:col-span-2 bg-emerald-950/20 border border-emerald-500/10 p-8 rounded-[2rem] relative overflow-hidden flex flex-col justify-center">
+          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+             <i className="fas fa-wallet text-9xl text-emerald-400"></i>
+          </div>
+          <p className="text-emerald-400 font-black tracking-[0.2em] text-xs uppercase mb-3">Banca Total</p>
+          <div className="flex flex-wrap items-center gap-4 lg:gap-6">
+             <h2 className="text-5xl lg:text-7xl font-black text-white font-mono tracking-tighter">
+               {currentBank.toFixed(2)}{currency}
+             </h2>
+             {stats.totalProfit !== 0 && (
+               <span className={`px-4 py-2 rounded-xl font-bold text-sm lg:text-base border ${stats.totalProfit > 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
+                 {stats.totalProfit > 0 ? '+' : ''}{stats.totalProfit.toFixed(2)}{currency} P/L
+               </span>
+             )}
+          </div>
+        </div>
+
+        {/* Card Lucro em Stakes - Direita */}
+        <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[2rem] flex flex-col justify-between relative overflow-hidden">
+           <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+             <i className="fas fa-chart-line text-8xl text-slate-400"></i>
+           </div>
+           <div>
+             <p className="text-slate-500 font-black tracking-[0.2em] text-xs uppercase mb-3">Lucro em Stakes</p>
+             <h2 className={`text-5xl font-black font-mono tracking-tighter ${stats.profitInStakes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+               {stats.profitInStakes > 0 ? '+' : ''}{stats.profitInStakes.toFixed(2)}
+             </h2>
+           </div>
+           <div className="mt-6 text-right">
+              <p className={`text-xl font-bold ${stats.profitInStakes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {stats.profitInStakes > 0 ? '+' : ''}{(stats.profitInStakes * 100).toFixed(0)}%
+              </p>
+              <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">% Sobre a Stake</p>
+           </div>
+        </div>
+      </div>
+
+      {/* Linha de 4 Cartões Estatísticos */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 mb-4">
+             <i className="fas fa-store"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Mercados</p>
+           <h4 className="text-2xl font-black text-white mb-2">{stats.uniqueMarketsCount}</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             HT {htCount} <span className="text-slate-600">|</span> FT {ftCount}
+           </p>
+        </div>
+
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
+             <i className="fas fa-percentage"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">ROI Mensal</p>
+           <h4 className={`text-2xl font-black ${stats.roi >= 0 ? 'text-emerald-400' : 'text-red-400'} mb-2`}>
+             {stats.roi.toFixed(2)}%
+           </h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Retorno sobre banca
+           </p>
+        </div>
+
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 mb-4">
+             <i className="fas fa-bullseye"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Win Rate</p>
+           <h4 className="text-2xl font-black text-white mb-2">{stats.winRate.toFixed(1)}%</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Taxa de acerto
+           </p>
+        </div>
+
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-yellow-500/10 rounded-xl flex items-center justify-center text-yellow-400 mb-4">
+             <i className="fas fa-chart-line"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Yield</p>
+           <h4 className={`text-2xl font-black ${stats.yield >= 0 ? 'text-white' : 'text-red-400'} mb-2`}>
+             {stats.yield.toFixed(1)}%
+           </h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Eficiência
+           </p>
+        </div>
       </div>
 
       {/* Gráficos Principais */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Gráfico de Lucro Diário */}
-        <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-3xl lg:rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
+        <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
           <div className="flex justify-between items-center mb-6 lg:mb-8">
             <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
               <i className="fas fa-calendar-day text-yellow-400 text-sm"></i> Performance Diária
@@ -183,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         </div>
 
         {/* Gráfico de Pizza (Win/Loss) */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl lg:rounded-[2.5rem] p-5 lg:p-8 flex flex-col shadow-lg">
+        <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 flex flex-col shadow-lg">
           <h3 className="text-lg lg:text-xl font-bold text-white mb-4 text-center">Distribuição</h3>
           <div className="flex-1 min-h-[200px] flex items-center justify-center relative">
              {winLossDetailedData.length > 0 ? (
@@ -227,7 +292,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       </div>
 
       {/* Curva de Equidade */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl lg:rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
+      <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
              <i className="fas fa-chart-area text-yellow-400 text-sm"></i> Curva de Crescimento
@@ -271,24 +336,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
   );
 };
 
-// Componentes Auxiliares Otimizados
-
-const StatCard: React.FC<{ title: string; value: string; color: string; icon: string; subValue: string; subColor: string }> = ({ title, value, color, icon, subValue, subColor }) => (
-  <div className="bg-slate-900/50 border border-slate-800 p-4 lg:p-6 rounded-2xl lg:rounded-[2rem] shadow-md hover:border-slate-700 transition-all">
-    <div className="flex items-start justify-between mb-2">
-      <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-slate-800 flex items-center justify-center shadow-inner`}>
-        <i className={`fas ${icon} text-lg lg:text-xl ${color}`}></i>
-      </div>
-      <span className={`text-[10px] lg:text-xs font-black ${subColor} bg-slate-800 px-2 py-1 rounded-lg border border-slate-700/50`}>
-        {subValue}
-      </span>
-    </div>
-    <div className="mt-2">
-      <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest">{title}</p>
-      <h4 className={`text-xl lg:text-3xl font-black font-mono mt-1 truncate ${color}`}>{value}</h4>
-    </div>
-  </div>
-);
+// Componentes Auxiliares
 
 const LegendItem: React.FC<{ color: string; label: string }> = ({ color, label }) => (
   <div className="flex items-center gap-2">
@@ -298,7 +346,7 @@ const LegendItem: React.FC<{ color: string; label: string }> = ({ color, label }
 );
 
 const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: string }> = ({ title, data, color, icon }) => (
-  <div className="bg-slate-900/50 border border-slate-800 rounded-3xl lg:rounded-[2.5rem] p-5 lg:p-8 shadow-md">
+  <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-md">
     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
       <i className={`fas ${icon}`} style={{ color }}></i> {title}
     </h3>
