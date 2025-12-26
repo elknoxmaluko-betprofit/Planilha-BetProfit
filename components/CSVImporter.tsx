@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Bet, BetStatus, BetType } from '../types';
 
@@ -6,9 +5,10 @@ interface CSVImporterProps {
   onImport: (bets: Bet[]) => void;
   onClose: () => void;
   monthlyStake: number;
+  currency: string;
 }
 
-const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlyStake }) => {
+const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlyStake, currency }) => {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<Bet[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,7 +129,7 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
               </div>
               <div className="text-center">
                 <p className="text-white font-bold text-xl">Arraste o seu extrato CSV aqui</p>
-                <p className="text-slate-500 mt-2">Cada entrada será registada com a stake de {monthlyStake}€</p>
+                <p className="text-slate-500 mt-2">Cada entrada será registada com a stake de {monthlyStake}{currency}</p>
               </div>
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
             </div>
@@ -140,7 +140,7 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
                   <i className="fas fa-check-circle text-emerald-500 text-xl"></i>
                   <div>
                     <p className="text-white font-bold">{preview.length} Entradas Identificadas</p>
-                    <p className="text-emerald-500/80 text-xs">Atribuindo stake fixa de {monthlyStake}€ por operação</p>
+                    <p className="text-emerald-500/80 text-xs">Atribuindo stake fixa de {monthlyStake}{currency} por operação</p>
                   </div>
                 </div>
                 <button onClick={() => setPreview([])} className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg transition-all">Trocar Ficheiro</button>
@@ -153,7 +153,7 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
                       <th className="p-4 text-slate-400 font-semibold">Data</th>
                       <th className="p-4 text-slate-400 font-semibold">Jogo / Evento</th>
                       <th className="p-4 text-slate-400 font-semibold">Mercado</th>
-                      <th className="p-4 text-slate-400 font-semibold text-right">P/L (€)</th>
+                      <th className="p-4 text-slate-400 font-semibold text-right">P/L ({currency})</th>
                       <th className="p-4 text-slate-400 font-semibold text-right">% ROI</th>
                     </tr>
                   </thead>
@@ -168,7 +168,7 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
                           </span>
                         </td>
                         <td className={`p-4 text-right font-mono font-bold text-sm ${b.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {b.profit > 0 ? '+' : ''}{b.profit.toFixed(2)}€
+                          {b.profit > 0 ? '+' : ''}{b.profit.toFixed(2)}{currency}
                         </td>
                         <td className={`p-4 text-right font-mono font-bold text-sm ${b.profitPercentage >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {b.profitPercentage > 0 ? '+' : ''}{b.profitPercentage.toFixed(2)}%

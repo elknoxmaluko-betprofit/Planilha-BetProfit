@@ -53,6 +53,8 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('betfair_leagues');
     return saved ? JSON.parse(saved) : ['Premier League', 'La Liga', 'Liga Portugal', 'Champions League'];
   });
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const teamsList = useMemo(() => {
     const teams = new Set<string>();
@@ -113,6 +115,12 @@ const App: React.FC = () => {
     if (data.tags) setTagsList(data.tags);
     if (data.leagues) setLeaguesList(data.leagues);
     setView('dashboard');
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleViewChange = (newView: typeof view) => {
+    setView(newView);
+    setIsMobileMenuOpen(false);
   };
 
   const monthKey = `${selectedDate.year}-${selectedDate.month}`;
@@ -181,6 +189,7 @@ const App: React.FC = () => {
   const addBet = (bet: Bet) => {
     setBets(prev => [bet, ...prev]);
     setView('bets');
+    setIsMobileMenuOpen(false);
   };
 
   const updateBet = (id: string, updates: Partial<Bet>) => {
@@ -202,54 +211,89 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 font-sans">
-      <nav className="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-6 flex flex-col gap-4 sticky top-0 md:h-screen z-10 overflow-y-auto scrollbar-none">
-        <div className="flex items-center gap-3 mb-8">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-950 text-slate-100 font-sans relative">
+      
+      {/* Mobile/Tablet Header */}
+      <div className="lg:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          <Logo size="sm" />
+          <h1 className="text-xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="text-slate-300 hover:text-white p-2"
+        >
+          <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-2xl`}></i>
+        </button>
+      </div>
+
+      {/* Mobile/Tablet Overlay Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
+      {/* Sidebar Navigation */}
+      <nav className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 p-6 flex flex-col gap-4 
+        transform transition-transform duration-300 ease-in-out shadow-2xl
+        lg:translate-x-0 lg:static lg:h-screen lg:sticky lg:top-0 lg:shadow-none
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="hidden lg:flex items-center gap-3 mb-8">
           <Logo size="sm" />
           <h1 className="text-2xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
         </div>
 
-        <div className="space-y-2">
-          <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'dashboard' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-chart-pie"></i> Dashboard
+        {/* Mobile/Tablet-only logo inside drawer */}
+        <div className="lg:hidden flex items-center gap-3 mb-8 pb-4 border-b border-slate-800">
+          <Logo size="sm" />
+          <h1 className="text-xl font-bold tracking-tight text-white">Menu</h1>
+        </div>
+
+        <div className="space-y-2 overflow-y-auto flex-1 scrollbar-none">
+          <button onClick={() => handleViewChange('dashboard')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'dashboard' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-chart-pie w-6"></i> Dashboard
           </button>
-          <button onClick={() => setView('annual')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'annual' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-calendar"></i> Anual
+          <button onClick={() => handleViewChange('annual')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'annual' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-calendar w-6"></i> Anual
           </button>
-          <button onClick={() => setView('bets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'bets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-list"></i> Histórico
+          <button onClick={() => handleViewChange('bets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'bets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-list w-6"></i> Histórico
           </button>
-          <button onClick={() => setView('markets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'markets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-bullseye"></i> Mercados
+          <button onClick={() => handleViewChange('markets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'markets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-bullseye w-6"></i> Mercados
           </button>
-          <button onClick={() => setView('leagues')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'leagues' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-trophy"></i> Campeonatos
+          <button onClick={() => handleViewChange('leagues')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'leagues' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-trophy w-6"></i> Campeonatos
           </button>
-          <button onClick={() => setView('teams')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'teams' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-users"></i> Equipas
+          <button onClick={() => handleViewChange('teams')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'teams' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-users w-6"></i> Equipas
           </button>
-          <button onClick={() => setView('methodologies')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'methodologies' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-flask"></i> Métodos
+          <button onClick={() => handleViewChange('methodologies')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'methodologies' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-flask w-6"></i> Métodos
           </button>
-          <button onClick={() => setView('tags')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'tags' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-tags"></i> Tags
+          <button onClick={() => handleViewChange('tags')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'tags' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-tags w-6"></i> Tags
           </button>
-          <button onClick={() => setView('data')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'data' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-database"></i> Dados
+          <button onClick={() => handleViewChange('data')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'data' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-database w-6"></i> Dados
           </button>
-          <button onClick={() => setView('add')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'add' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-plus-circle"></i> Registar
+          <button onClick={() => handleViewChange('add')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'add' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-plus-circle w-6"></i> Registar
           </button>
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-800">
            <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all text-lg font-medium">
-             <i className="fas fa-sign-out-alt"></i> Sair
+             <i className="fas fa-sign-out-alt w-6"></i> Sair
            </button>
         </div>
       </nav>
 
-      <main className="flex-1 p-6 md:p-12 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-12 overflow-y-auto w-full">
         <header className="mb-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-white capitalize">

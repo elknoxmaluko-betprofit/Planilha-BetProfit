@@ -1,13 +1,13 @@
-
 import React, { useMemo } from 'react';
 import { Bet, BetStatus } from '../types';
 
 interface TeamsViewProps {
   bets: Bet[];
   availableTeams: string[];
+  currency: string;
 }
 
-const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams }) => {
+const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency }) => {
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
     
@@ -94,7 +94,7 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams }) => {
                   <div>
                     <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Líquido</p>
                     <p className={`font-mono font-bold ${item.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {item.profit >= 0 ? '+' : ''}{item.profit.toFixed(2)}€
+                      {item.profit >= 0 ? '+' : ''}{item.profit.toFixed(2)}{currency}
                     </p>
                   </div>
                 </div>

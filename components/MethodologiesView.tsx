@@ -6,9 +6,10 @@ interface MethodologiesViewProps {
   available: string[];
   onCreate: (name: string) => void;
   onDelete: (name: string) => void;
+  currency: string;
 }
 
-const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, onCreate, onDelete }) => {
+const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, onCreate, onDelete, currency }) => {
   const [newName, setNewName] = useState('');
 
   const statsMap = useMemo(() => {
@@ -101,7 +102,7 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
                   <div className="text-right">
                     <p className="text-slate-500 text-xs uppercase font-black mb-1.5 tracking-widest">P/L Total</p>
                     <p className={`text-2xl font-mono font-black ${textColor}`}>
-                      {isProfit ? '+' : ''}{item.profit.toFixed(2)}€
+                      {isProfit ? '+' : ''}{item.profit.toFixed(2)}{currency}
                     </p>
                   </div>
                 </div>

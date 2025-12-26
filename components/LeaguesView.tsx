@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Bet, BetStatus } from '../types';
 
@@ -7,9 +6,10 @@ interface LeaguesViewProps {
   available: string[];
   onCreate: (name: string) => void;
   onDelete: (name: string) => void;
+  currency: string;
 }
 
-const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, onDelete }) => {
+const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, onDelete, currency }) => {
   const [newName, setNewName] = useState('');
 
   const statsMap = useMemo(() => {
@@ -76,7 +76,7 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
                 </div>
                 <div>
                   <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Total</p>
-                  <p className={`font-mono font-bold ${item.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{item.profit.toFixed(2)}€</p>
+                  <p className={`font-mono font-bold ${item.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{item.profit.toFixed(2)}{currency}</p>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center">
