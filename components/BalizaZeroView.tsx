@@ -171,7 +171,6 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                         <thead className="sticky top-0 z-10">
                           <tr className="bg-slate-400 text-black">
                              <th className="border border-black p-1">Dezena</th>
-                             <th className="border border-black p-1">Início (Est)</th>
                              <th className="border border-black p-1">Banca</th>
                              <th className="border border-black p-1">Stake</th>
                              <th className="border border-black p-1">Meta Stake</th>
@@ -184,7 +183,6 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                                return (
                                  <tr key={i} className={`${isActive ? 'bg-yellow-100 text-black font-bold ring-2 ring-inset ring-amber-500' : i % 2 === 0 ? 'bg-black text-white' : 'bg-slate-300 text-black'}`}>
                                    <td className="border border-slate-600 p-1">{row.id}ª</td>
-                                   <td className="border border-slate-600 p-1 opacity-70">---</td>
                                    <td className="border border-slate-600 p-1 text-right px-2">{currency} {row.bank.toFixed(2)}</td>
                                    <td className="border border-slate-600 p-1 text-right px-2">{currency} {row.stake.toFixed(2)}</td>
                                    <td className="border border-slate-600 p-1 bg-blue-400 text-black font-bold">2.5</td>
@@ -233,6 +231,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                      <th className="p-2 border border-slate-500">Stake</th>
                      <th className="p-2 border border-slate-500">P/L Real</th>
                      <th className="p-2 border border-slate-500 bg-amber-200">Meta da Dezena</th>
+                     <th className="p-2 border border-slate-500 bg-amber-200">Progresso</th>
                      <th className="p-2 border border-slate-500 bg-amber-300 min-w-[120px]">Meta Atingida?</th>
                      <th className="p-2 border border-slate-500">Saldo Final (Real)</th>
                    </tr>
@@ -256,6 +255,10 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                      
                      // O Saldo Final Real mostra o resultado da banca inicial teórica + lucro real obtido
                      const finalBalanceReal = realStartBank + actualProfit;
+                     
+                     // Cálculo do progresso
+                     const progressPct = targetMeta > 0 ? Math.min(100, Math.max(0, (actualProfit / targetMeta) * 100)) : 0;
+                     const isNegative = actualProfit < 0;
 
                      return (
                        <tr key={i} className={`border-b border-slate-800 transition-colors ${isCurrent ? 'bg-slate-900/80' : ''}`}>
@@ -270,6 +273,12 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                            {actualProfit > 0 ? '+' : ''}{actualProfit.toFixed(2)}
                          </td>
                          <td className="p-3 border-r border-slate-800 bg-slate-900/50 text-amber-200">{currency} {targetMeta.toFixed(2)}</td>
+                         <td className="p-3 border-r border-slate-800 bg-slate-900/50 text-amber-200 font-bold relative overflow-hidden">
+                           <div className="absolute inset-0 bg-emerald-500/20" style={{ width: `${progressPct}%` }}></div>
+                           <span className={`relative z-10 ${isNegative ? 'text-red-400' : progressPct >= 100 ? 'text-emerald-400' : 'text-amber-200'}`}>
+                              {isNegative ? '0.0%' : `${progressPct.toFixed(1)}%`}
+                           </span>
+                         </td>
                          <td className="p-3 border-r border-slate-800">
                            <div className="flex gap-1 justify-center">
                              {isPast ? (
