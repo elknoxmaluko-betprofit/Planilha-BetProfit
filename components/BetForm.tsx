@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bet, BetStatus, BetType } from '../types';
+import { Bet, BetStatus, BetType, Project } from '../types';
 
 interface BetFormProps {
   onAdd: (bet: Bet) => void;
@@ -10,10 +10,11 @@ interface BetFormProps {
   tags: string[];
   leagues: string[];
   teams: string[];
+  projects: Project[];
   currency: string;
 }
 
-const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, methodologies, tags, leagues, teams, currency }) => {
+const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, methodologies, tags, leagues, teams, projects, currency }) => {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     event: '',
@@ -24,6 +25,7 @@ const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, method
     methodology: methodologies[0] || '',
     league: leagues[0] || '',
     team: teams[0] || '',
+    projectId: '',
     selectedTags: [] as string[]
   });
 
@@ -58,6 +60,7 @@ const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, method
       methodology: formData.methodology,
       league: formData.league,
       team: formData.team,
+      projectId: formData.projectId || undefined,
       tags: formData.selectedTags
     };
 
@@ -114,6 +117,16 @@ const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, method
               {teams.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
+          
+          {/* Seleção de Projeto */}
+          <div className="space-y-3">
+            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Projeto (Opcional)</label>
+            <select className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white text-lg outline-none focus:border-yellow-400 shadow-inner" value={formData.projectId} onChange={e => setFormData({ ...formData, projectId: e.target.value })}>
+              <option value="">Nenhum Projeto</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Método</label>
             <select className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white text-lg outline-none focus:border-yellow-400 shadow-inner" value={formData.methodology} onChange={e => setFormData({ ...formData, methodology: e.target.value })}>

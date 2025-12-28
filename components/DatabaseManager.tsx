@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 
-// Added leagues and teams to the interface to match the data being passed in App.tsx
+// Added leagues, teams and projects to the interface
 interface DatabaseManagerProps {
   onDataImport: (data: any) => void;
   currentData: {
@@ -12,6 +12,7 @@ interface DatabaseManagerProps {
     tags: string[];
     leagues: string[];
     teams: string[];
+    projects: any[];
   };
 }
 
@@ -100,14 +101,14 @@ const DatabaseManager: React.FC<DatabaseManagerProps> = ({ onDataImport, current
           onChange={handleFileChange} 
         />
 
-        {/* Updated grid to 5 columns to include leagues and teams stats */}
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        {/* Updated grid stats to include projects */}
+        <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
-             <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-widest">Registos Atuais</p>
+             <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-widest">Registos</p>
              <p className="text-2xl font-bold text-white">{currentData.bets.length}</p>
           </div>
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
-             <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-widest">Metodologias</p>
+             <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-widest">Métodos</p>
              <p className="text-2xl font-bold text-white">{currentData.methodologies.length}</p>
           </div>
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
@@ -121,6 +122,10 @@ const DatabaseManager: React.FC<DatabaseManagerProps> = ({ onDataImport, current
           <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
              <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-widest">Equipas</p>
              <p className="text-2xl font-bold text-white">{currentData.teams.length}</p>
+          </div>
+          <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
+             <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-widest">Projetos</p>
+             <p className="text-2xl font-bold text-white">{currentData.projects.length}</p>
           </div>
         </div>
       </div>

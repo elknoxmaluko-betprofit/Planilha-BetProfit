@@ -11,6 +11,20 @@ export enum BetType {
   LAY = 'LAY'
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  startBankroll: number;
+  goal?: number;
+  startDate: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  description?: string;
+  projectType?: 'STANDARD' | 'BALIZA_ZERO';
+  stakeGoal?: number;      
+  bankrollDivision?: number;
+  activeDezenaIndex?: number; // Novo: Índice da dezena atualmente ativa (0, 1, 2...)
+}
+
 export interface Bet {
   id: string;
   date: string;
@@ -25,8 +39,10 @@ export interface Bet {
   status: BetStatus;
   methodology?: string;
   tags?: string[];
-  league?: string; // Novo
-  team?: string;   // Novo
+  league?: string;
+  team?: string;
+  projectId?: string;
+  dezenaIndex?: number; // Novo: Índice da dezena a que esta aposta pertence
 }
 
 export interface Stats {

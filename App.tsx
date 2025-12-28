@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Bet, BetStatus, Stats } from './types';
+import { Bet, BetStatus, Stats, Project } from './types';
 import Dashboard from './components/Dashboard';
 import AnnualView from './components/AnnualView';
 import BetForm from './components/BetForm';
@@ -10,6 +10,7 @@ import MethodologiesView from './components/MethodologiesView';
 import TagsView from './components/TagsView';
 import LeaguesView from './components/LeaguesView';
 import TeamsView from './components/TeamsView';
+import ProjectsView from './components/ProjectsView';
 import CSVImporter from './components/CSVImporter';
 import Login from './components/Login';
 import DatabaseManager from './components/DatabaseManager';
@@ -27,6 +28,11 @@ const App: React.FC = () => {
   
   const [currency, setCurrency] = useState<string>(() => {
     return localStorage.getItem('betprofit_currency') || '€';
+  });
+
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('betprofit_projects');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [monthlyStakes, setMonthlyStakes] = useState<Record<string, number>>(() => {
@@ -78,7 +84,7 @@ const App: React.FC = () => {
     return { month: now.getMonth(), year: startYear };
   });
 
-  const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'data'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data'>('dashboard');
   const [showCSVModal, setShowCSVModal] = useState(false);
 
   useEffect(() => {
@@ -88,6 +94,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('betprofit_currency', currency);
   }, [currency]);
+
+  useEffect(() => {
+    localStorage.setItem('betprofit_projects', JSON.stringify(projects));
+  }, [projects]);
 
   useEffect(() => {
     localStorage.setItem('betfair_monthly_stakes', JSON.stringify(monthlyStakes));
@@ -109,6 +119,7 @@ const App: React.FC = () => {
 
   const handleDataImport = (data: any) => {
     if (data.bets) setBets(data.bets);
+    if (data.projects) setProjects(data.projects);
     if (data.monthlyStakes) setMonthlyStakes(data.monthlyStakes);
     if (data.monthlyBankrolls) setMonthlyBankrolls(data.monthlyBankrolls);
     if (data.methodologies) setMethodologiesList(data.methodologies);
@@ -186,8 +197,51 @@ const App: React.FC = () => {
     return <Login onLogin={handleLogin} />;
   }
 
+  // Helper para atribuir automaticamente projeto a novas apostas
+  const getAutoProjectId = (dateStr: string) => {
+    const betDate = new Date(dateStr);
+    betDate.setHours(0, 0, 0, 0);
+    
+    // Filtra projetos ativos
+    const candidates = projects.filter(p => p.status === 'ACTIVE');
+    
+    // Encontra aqueles onde a aposta é posterior ao início do projeto
+    const eligible = candidates.filter(p => {
+      const pStart = new Date(p.startDate);
+      pStart.setHours(0, 0, 0, 0);
+      return betDate.getTime() >= pStart.getTime();
+    });
+    
+    // Se houver múltiplos, escolhe o que começou mais recentemente (contexto mais específico)
+    // Ex: Projeto A (Jan 1), Projeto B (Fev 1). Aposta em Março vai para B.
+    if (eligible.length > 0) {
+      return eligible.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0].id;
+    }
+    return undefined;
+  };
+
   const addBet = (bet: Bet) => {
-    setBets(prev => [bet, ...prev]);
+    const betToSave = { ...bet };
+    
+    // Lógica para Projetos
+    let targetProjectId = betToSave.projectId;
+
+    // Se não tiver projeto definido manualmente, tenta atribuir automaticamente
+    if (!targetProjectId) {
+      targetProjectId = getAutoProjectId(betToSave.date);
+      betToSave.projectId = targetProjectId;
+    }
+
+    // Se o projeto for do tipo BALIZA_ZERO, atribui o índice da dezena ativa
+    if (targetProjectId) {
+        const project = projects.find(p => p.id === targetProjectId);
+        if (project && project.projectType === 'BALIZA_ZERO') {
+            // Usa o índice ativo ou 0 se não existir
+            betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
+        }
+    }
+
+    setBets(prev => [betToSave, ...prev]);
     setView('bets');
     setIsMobileMenuOpen(false);
   };
@@ -198,6 +252,55 @@ const App: React.FC = () => {
 
   const deleteBet = (id: string) => {
     setBets(prev => prev.filter(b => b.id !== id));
+  };
+
+  const createProject = (project: Project) => {
+    // Inicializa Baliza Zero com índice 0
+    if (project.projectType === 'BALIZA_ZERO') {
+        project.activeDezenaIndex = 0;
+    }
+    setProjects(prev => [...prev, project]);
+  };
+
+  const deleteProject = (id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updateProject = (id: string, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  // Função para avançar manualmente a Dezena (Validar Meta)
+  const advanceProjectDezena = (projectId: string) => {
+    setProjects(prev => prev.map(p => {
+        if (p.id === projectId && p.projectType === 'BALIZA_ZERO') {
+            const currentIndex = p.activeDezenaIndex ?? 0;
+            return { ...p, activeDezenaIndex: currentIndex + 1 };
+        }
+        return p;
+    }));
+  };
+
+  // Função para associar apostas existentes a um projeto com base na data de início
+  const assignBetsToProject = (projectId: string, startDate: string) => {
+    const projectStart = new Date(startDate);
+    projectStart.setHours(0, 0, 0, 0); 
+    
+    setBets(prev => prev.map(b => {
+      const betDate = new Date(b.date);
+      betDate.setHours(0, 0, 0, 0);
+
+      if (betDate.getTime() >= projectStart.getTime()) {
+        // Se for baliza zero, atribui dezena 0 por defeito a apostas antigas
+        const proj = projects.find(p => p.id === projectId);
+        const updates: Partial<Bet> = { projectId };
+        if (proj?.projectType === 'BALIZA_ZERO') {
+            updates.dezenaIndex = 0; 
+        }
+        return { ...b, ...updates };
+      }
+      return b;
+    }));
   };
 
   const updateMonthlyBankroll = (val: string) => {
@@ -263,6 +366,9 @@ const App: React.FC = () => {
           <button onClick={() => handleViewChange('bets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'bets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-list w-6"></i> Histórico
           </button>
+          <button onClick={() => handleViewChange('projects')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'projects' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-folder-open w-6"></i> Projetos
+          </button>
           <button onClick={() => handleViewChange('markets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'markets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-bullseye w-6"></i> Mercados
           </button>
@@ -297,7 +403,7 @@ const App: React.FC = () => {
         <header className="mb-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-white capitalize">
-              {view === 'dashboard' ? 'Visão Geral' : view === 'annual' ? 'Visão Anual' : view === 'bets' ? 'Histórico' : view === 'markets' ? 'Análise de Mercados' : view === 'methodologies' ? 'Gestão de Métodos' : view === 'tags' ? 'Análise por Tags' : view === 'leagues' ? 'Campeonatos' : view === 'teams' ? 'Equipas' : view === 'data' ? 'Base de Dados' : 'Nova Entrada'}
+              {view === 'dashboard' ? 'Visão Geral' : view === 'annual' ? 'Visão Anual' : view === 'bets' ? 'Histórico' : view === 'markets' ? 'Análise de Mercados' : view === 'methodologies' ? 'Gestão de Métodos' : view === 'tags' ? 'Análise por Tags' : view === 'leagues' ? 'Campeonatos' : view === 'teams' ? 'Equipas' : view === 'projects' ? 'Gestão de Projetos' : view === 'data' ? 'Base de Dados' : 'Nova Entrada'}
             </h2>
             <p className="text-slate-400 text-lg mt-1">{view === 'annual' ? `Ano de ${selectedDate.year}` : `${months[selectedDate.month]} ${selectedDate.year}`}</p>
           </div>
@@ -317,7 +423,7 @@ const App: React.FC = () => {
               </select>
             </div>
 
-            {view !== 'annual' && (
+            {view !== 'annual' && view !== 'projects' && (
               <>
                 <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl">
                    <label className="text-xs uppercase font-black text-slate-500 tracking-widest">Banca:</label>
@@ -361,10 +467,28 @@ const App: React.FC = () => {
         {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
         {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => setMethodologiesList([...methodologiesList, m])} onDelete={(m) => setMethodologiesList(methodologiesList.filter(x => x !== m))} currency={currency} />}
         {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => setTagsList([...tagsList, t])} onDelete={(t) => setTagsList(tagsList.filter(x => x !== t))} />}
-        {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList }} onDataImport={handleDataImport} />}
-        {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} currency={currency} />}
+        {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} />}
+        {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects }} onDataImport={handleDataImport} />}
+        {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} />}
 
-        {showCSVModal && <CSVImporter onImport={(newBets) => { setBets(prev => [...newBets, ...prev]); setShowCSVModal(false); setView('bets'); }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
+        {showCSVModal && <CSVImporter onImport={(newBets) => { 
+            const betsWithProjects = newBets.map(b => {
+                let pid = b.projectId || getAutoProjectId(b.date);
+                let dezIndex = 0;
+                if(pid) {
+                   const p = projects.find(pr => pr.id === pid);
+                   if(p && p.projectType === 'BALIZA_ZERO') dezIndex = p.activeDezenaIndex ?? 0;
+                }
+                return {
+                    ...b,
+                    projectId: pid,
+                    dezenaIndex: dezIndex
+                };
+            });
+            setBets(prev => [...betsWithProjects, ...prev]); 
+            setShowCSVModal(false); 
+            setView('bets'); 
+        }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
       </main>
     </div>
   );
