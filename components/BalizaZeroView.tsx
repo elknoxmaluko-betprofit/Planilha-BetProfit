@@ -126,14 +126,49 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b-2 border-slate-800 pb-6">
         <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-slate-900 border-4 border-slate-800 flex items-center justify-center relative overflow-hidden group">
-            <div className="absolute inset-0 bg-amber-600/20 group-hover:bg-amber-600/40 transition-all"></div>
-            <span className="text-6xl font-black text-slate-200 italic relative z-10" style={{ fontFamily: 'Arial Black' }}>Z</span>
-            <div className="absolute bottom-2 right-2 w-8 h-1 bg-amber-600"></div>
-            <div className="absolute top-2 left-2 w-1 h-8 bg-amber-600"></div>
+          <div className="w-24 h-24 relative group">
+             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-300">
+                <defs>
+                  <linearGradient id="goldGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#fbbf24" /> {/* Amber 300 */}
+                    <stop offset="50%" stopColor="#d97706" /> {/* Amber 600 */}
+                    <stop offset="100%" stopColor="#78350f" /> {/* Amber 900 */}
+                  </linearGradient>
+                  <linearGradient id="steelGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#94a3b8" /> {/* Slate 400 */}
+                    <stop offset="50%" stopColor="#475569" /> {/* Slate 600 */}
+                    <stop offset="100%" stopColor="#0f172a" /> {/* Slate 900 */}
+                  </linearGradient>
+                  <filter id="shadow3d">
+                    <feDropShadow dx="1" dy="2" stdDeviation="2" floodOpacity="0.5"/>
+                  </filter>
+                </defs>
+                
+                {/* Grey Component (L-Shape with Angled Tip) - UNCHANGED */}
+                <path 
+                  d="M20 15 H40 V65 H70 L90 45 H100 V65 L80 85 H20 V15 Z" 
+                  fill="url(#steelGradient)" 
+                  filter="url(#shadow3d)"
+                  stroke="#334155"
+                  strokeWidth="0.5"
+                />
+                
+                {/* Gold Component (Z-Shape) - UPSCALED to match B dimensions */}
+                <path 
+                  d="M40 15 H100 V35 H80 L60 65 H100 V85 H40 V65 H50 L70 35 H40 V15 Z" 
+                  fill="url(#goldGradient)" 
+                  filter="url(#shadow3d)"
+                  stroke="#b45309"
+                  strokeWidth="0.5"
+                />
+             </svg>
           </div>
           <div>
-            <h1 className="text-4xl md:text-5xl font-black text-slate-200 tracking-tighter uppercase">Baliza <br/><span className="text-amber-500">Zero</span></h1>
+            <h1 className="text-4xl md:text-5xl font-black text-slate-200 tracking-tighter uppercase leading-none">
+              Baliza <br/>
+              <span className="text-amber-500">Zero</span>
+              <span className="text-xl md:text-2xl text-sky-400 ml-2 font-bold italic normal-case tracking-normal">By Priori</span>
+            </h1>
           </div>
         </div>
         
@@ -260,6 +295,10 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                      const progressPct = targetMeta > 0 ? Math.min(100, Math.max(0, (actualProfit / targetMeta) * 100)) : 0;
                      const isNegative = actualProfit < 0;
 
+                     // Contagem de dias de trabalho únicos
+                     const uniqueDays = new Set(dezenaBets.map(b => new Date(b.date).toDateString())).size;
+                     const canConclude = uniqueDays >= 10;
+
                      return (
                        <tr key={i} className={`border-b border-slate-800 transition-colors ${isCurrent ? 'bg-slate-900/80' : ''}`}>
                          <td className="p-3 border-r border-slate-800 bg-slate-900 font-bold">{plan.id}ª Dezena</td>
@@ -289,13 +328,22 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                              ) : isCurrent ? (
                                <>
                                  <button 
-                                    onClick={handleValidateDezena}
-                                    className="bg-slate-700 hover:bg-emerald-500 text-white hover:text-black px-3 py-1 rounded transition-all font-black text-[10px] uppercase flex-1"
+                                    onClick={canConclude ? handleValidateDezena : undefined}
+                                    disabled={!canConclude}
+                                    className={`${
+                                        canConclude 
+                                        ? 'bg-slate-700 hover:bg-emerald-500 text-white hover:text-black' 
+                                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                    } px-3 py-1 rounded transition-all font-black text-[10px] uppercase flex-1 flex flex-col items-center justify-center`}
+                                    title={!canConclude ? `Necessários 10 dias de trabalho. Atual: ${uniqueDays}` : 'Concluir Dezena'}
+                                    style={{ height: '32px' }}
                                  >
-                                   SIM
+                                   <span>SIM</span>
+                                   {!canConclude && <span className="text-[7px] leading-none mt-0.5 text-slate-500">{uniqueDays}/10 Dias</span>}
                                  </button>
                                  <button 
                                     className="bg-red-500 text-white px-3 py-1 rounded font-black text-[10px] uppercase flex-1"
+                                    style={{ height: '32px' }}
                                  >
                                    NÃO
                                  </button>
