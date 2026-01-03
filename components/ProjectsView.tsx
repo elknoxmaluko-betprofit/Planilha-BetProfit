@@ -10,14 +10,16 @@ interface ProjectsViewProps {
   onCreate: (project: Project) => void;
   onDelete: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Project>) => void;
-  onAssignBets: (projectId: string, startDate: string) => void;
+  onAssignBets: (projectId: string, tag: string) => void;
   onAdvanceProjectDezena?: (projectId: string) => void;
   currency: string;
+  availableTags: string[];
 }
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, onDelete, onUpdate, onAssignBets, onAdvanceProjectDezena, currency }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, onDelete, onUpdate, onAssignBets, onAdvanceProjectDezena, currency, availableTags }) => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   
   const [newProject, setNewProject] = useState<Partial<Project>>({
     name: '',
@@ -27,7 +29,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
     bankrollDivision: 10,
     startDate: new Date().toISOString().split('T')[0],
     description: '',
-    projectType: 'STANDARD'
+    projectType: 'STANDARD',
+    tag: ''
   });
 
   const selectedProject = useMemo(() => 
@@ -36,7 +39,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
   const projectStats = useMemo(() => {
     return projects.map(proj => {
-      const projectBets = bets.filter(b => b.projectId === proj.id);
+      // Filtra apostas que têm o projectId explícito OU que contêm a Tag do projeto
+      const projectBets = bets.filter(b => {
+         const hasExplicitId = b.projectId === proj.id;
+         const hasMatchingTag = proj.tag && b.tags && b.tags.some(t => t.toLowerCase() === proj.tag!.toLowerCase());
+         return hasExplicitId || hasMatchingTag;
+      });
+
       const settledBets = projectBets.filter(b => b.status !== BetStatus.PENDING);
       
       const totalProfit = settledBets.reduce((acc, b) => acc + b.profit, 0);
@@ -69,6 +78,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
       return {
         ...proj,
+        projectBets, // Passa as apostas filtradas para uso posterior (ex: BalizaZeroView)
         totalProfit,
         currentBankroll,
         betCount: projectBets.length,
@@ -94,12 +104,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         goal: newProject.projectType === 'STANDARD' && newProject.goal ? Number(newProject.goal) : undefined,
         stakeGoal: newProject.projectType === 'BALIZA_ZERO' && newProject.stakeGoal ? Number(newProject.stakeGoal) : undefined,
         bankrollDivision: newProject.projectType === 'BALIZA_ZERO' && newProject.bankrollDivision ? Number(newProject.bankrollDivision) : undefined,
+        tag: newProject.tag ? newProject.tag.trim().toLowerCase() : undefined
       };
       
       onCreate(project);
       
-      if (project.startDate) {
-        onAssignBets(project.id, project.startDate);
+      // Associa apostas existentes que já tenham esta tag
+      if (project.tag) {
+        onAssignBets(project.id, project.tag);
       }
 
       setShowForm(false);
@@ -111,17 +123,27 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         bankrollDivision: 10,
         startDate: new Date().toISOString().split('T')[0], 
         description: '', 
-        projectType: 'STANDARD' 
+        projectType: 'STANDARD',
+        tag: ''
       });
     }
   };
 
+  const filteredTags = useMemo(() => {
+    if (!newProject.tag) return availableTags;
+    return availableTags.filter(t => t.toLowerCase().includes(newProject.tag!.toLowerCase()));
+  }, [availableTags, newProject.tag]);
+
   if (selectedProject) {
+    const activeStats = projectStats.find(p => p.id === selectedProject.id);
+    // Usa as apostas filtradas no projectStats para garantir que a tag foi considerada
+    const betsForView = activeStats ? activeStats.projectBets : [];
+
     if (selectedProject.projectType === 'BALIZA_ZERO') {
       return (
         <BalizaZeroView 
           project={selectedProject} 
-          bets={bets.filter(b => b.projectId === selectedProject.id)} 
+          bets={betsForView} 
           onBack={() => setSelectedProjectId(null)} 
           currency={currency}
           onAdvanceDezena={onAdvanceProjectDezena}
@@ -134,8 +156,17 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
           <i className="fas fa-arrow-left"></i> Voltar à Lista
         </button>
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl">
-           <h2 className="text-3xl font-bold text-white mb-2">{selectedProject.name}</h2>
-           <p className="text-slate-400">Detalhes do projeto padrão aqui.</p>
+           <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">{selectedProject.name}</h2>
+                {selectedProject.tag && (
+                  <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm font-bold border border-blue-500/30">
+                    #{selectedProject.tag}
+                  </span>
+                )}
+              </div>
+           </div>
+           <p className="text-slate-400 mt-4">Detalhes do projeto padrão aqui.</p>
         </div>
       </div>
     );
@@ -144,7 +175,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <p className="text-slate-400">Gerencie desafios específicos e alavancagens separadamente da sua banca principal.</p>
+        <p className="text-slate-400">Gerencie desafios específicos. Use <b>Tags</b> para associar as suas entradas automaticamente.</p>
         <button 
           onClick={() => setShowForm(!showForm)}
           className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-6 py-3 rounded-2xl font-bold shadow-lg shadow-yellow-400/20 transition-all flex items-center gap-2"
@@ -186,6 +217,45 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
               <label className="text-xs uppercase font-bold text-slate-500 tracking-widest">Nome do Projeto</label>
               <input type="text" required placeholder="Ex: Alavancagem Baliza Zero" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} />
             </div>
+            
+            <div className="space-y-2 relative">
+              <label className="text-xs uppercase font-bold text-slate-500 tracking-widest">Tag de Associação</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">#</span>
+                <input 
+                  type="text" 
+                  placeholder="ex: baliza01" 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-white outline-none focus:border-yellow-400" 
+                  value={newProject.tag} 
+                  onFocus={() => setShowTagSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
+                  onChange={e => setNewProject({...newProject, tag: e.target.value})} 
+                />
+              </div>
+              
+              {/* Dropdown de Sugestões de Tags */}
+              {showTagSuggestions && (
+                <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-xl max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+                  {filteredTags.length > 0 ? (
+                    filteredTags.map((tag, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className="w-full text-left px-4 py-3 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors border-b border-slate-800 last:border-0 flex justify-between items-center"
+                        onClick={() => setNewProject({ ...newProject, tag: tag })}
+                      >
+                        <span className="font-bold">#{tag}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-slate-500 text-sm italic">Nenhuma tag encontrada. Digite para criar nova.</div>
+                  )}
+                </div>
+              )}
+              
+              <p className="text-[10px] text-slate-500 mt-1">Apostas com esta tag serão adicionadas automaticamente.</p>
+            </div>
+
             <div className="space-y-2">
               <label className="text-xs uppercase font-bold text-slate-500 tracking-widest">Banca Inicial ({currency})</label>
               <input type="number" required className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" value={newProject.startBankroll} onChange={e => setNewProject({...newProject, startBankroll: Number(e.target.value)})} />
@@ -241,6 +311,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                     <span className="bg-amber-500/20 text-amber-500 text-[10px] uppercase font-black px-2 py-0.5 rounded border border-amber-500/30">Baliza Zero</span>
                   )}
                 </div>
+                {proj.tag && (
+                  <div className="mb-2">
+                    <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-md font-mono border border-slate-700">#{proj.tag}</span>
+                  </div>
+                )}
                 <p className="text-xs text-slate-500 line-clamp-1">{proj.description || "Sem descrição"}</p>
               </div>
               <button 

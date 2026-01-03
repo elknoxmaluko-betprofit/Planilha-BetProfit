@@ -126,41 +126,73 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b-2 border-slate-800 pb-6">
         <div className="flex items-center gap-6">
-          <div className="w-24 h-24 relative group">
-             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-300">
+          <div className="w-32 h-32 md:w-40 md:h-40 relative group">
+             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-500">
                 <defs>
-                  <linearGradient id="goldGradient" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#fbbf24" /> {/* Amber 300 */}
+                  {/* Gradiente Dourado Premium para o Z */}
+                  <linearGradient id="premiumGold" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b" /> {/* Amber 500 */}
                     <stop offset="50%" stopColor="#d97706" /> {/* Amber 600 */}
-                    <stop offset="100%" stopColor="#78350f" /> {/* Amber 900 */}
+                    <stop offset="100%" stopColor="#b45309" /> {/* Amber 700 */}
                   </linearGradient>
-                  <linearGradient id="steelGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#94a3b8" /> {/* Slate 400 */}
-                    <stop offset="50%" stopColor="#475569" /> {/* Slate 600 */}
+                  
+                  {/* Gradiente Metal Escuro para o B e Frame */}
+                  <linearGradient id="darkMetal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#334155" /> {/* Slate 700 */}
                     <stop offset="100%" stopColor="#0f172a" /> {/* Slate 900 */}
                   </linearGradient>
-                  <filter id="shadow3d">
-                    <feDropShadow dx="1" dy="2" stdDeviation="2" floodOpacity="0.5"/>
+
+                   {/* Padrão de Rede Hexagonal */}
+                  <pattern id="hexNet" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M5 0 L10 2.5 L10 7.5 L5 10 L0 7.5 L0 2.5 Z" fill="none" stroke="#334155" strokeWidth="0.5" opacity="0.4"/>
+                  </pattern>
+
+                  {/* Sombra 3D */}
+                  <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+                    <feOffset dx="2" dy="2" result="offsetblur"/>
+                    <feComponentTransfer>
+                      <feFuncA type="linear" slope="0.5"/>
+                    </feComponentTransfer>
+                    <feMerge> 
+                      <feMergeNode/>
+                      <feMergeNode in="SourceGraphic"/> 
+                    </feMerge>
                   </filter>
                 </defs>
                 
-                {/* Grey Component (L-Shape with Angled Tip) - UNCHANGED */}
+                {/* Background da Rede (Dentro da Baliza) */}
+                <rect x="10" y="27.5" width="80" height="45" fill="url(#hexNet)" />
+
+                {/* Estrutura da Baliza (Frame) - Retangular */}
                 <path 
-                  d="M20 15 H40 V65 H70 L90 45 H100 V65 L80 85 H20 V15 Z" 
-                  fill="url(#steelGradient)" 
-                  filter="url(#shadow3d)"
-                  stroke="#334155"
-                  strokeWidth="0.5"
+                  d="M5 77.5 V22.5 H95 V77.5" 
+                  stroke="url(#darkMetal)" 
+                  strokeWidth="6" 
+                  strokeLinecap="round" 
+                  fill="none" 
+                  filter="url(#dropShadow)"
                 />
                 
-                {/* Gold Component (Z-Shape) - UPSCALED to match B dimensions */}
+                {/* Letra B - Geometria Angular e Moderna */}
                 <path 
-                  d="M40 15 H100 V35 H80 L60 65 H100 V85 H40 V65 H50 L70 35 H40 V15 Z" 
-                  fill="url(#goldGradient)" 
-                  filter="url(#shadow3d)"
-                  stroke="#b45309"
+                  d="M20 27.5 H40 L48 34 V44 L42 50 L48 56 V66 L40 72.5 H20 V27.5 Z M28 35.5 V43.5 H37 L40 41 V38 L37 35.5 H28 Z M28 56.5 V64.5 H37 L40 62 V59 L37 56.5 H28 Z" 
+                  fill="url(#darkMetal)" 
+                  stroke="#1e293b"
                   strokeWidth="0.5"
+                  fillRule="evenodd"
+                  filter="url(#dropShadow)"
                 />
+
+                {/* Letra Z - Centrada no novo formato */}
+                <path 
+                  d="M55 27.5 H85 L85 35.5 L65 64.5 H85 V72.5 H50 V64.5 L70 35.5 H55 V27.5 Z" 
+                  fill="url(#premiumGold)" 
+                  stroke="#fff"
+                  strokeWidth="0.5"
+                  filter="url(#dropShadow)"
+                />
+
              </svg>
           </div>
           <div>

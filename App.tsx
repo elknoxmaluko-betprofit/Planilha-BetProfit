@@ -197,44 +197,26 @@ const App: React.FC = () => {
     return <Login onLogin={handleLogin} />;
   }
 
-  // Helper para atribuir automaticamente projeto a novas apostas
-  const getAutoProjectId = (dateStr: string) => {
-    const betDate = new Date(dateStr);
-    betDate.setHours(0, 0, 0, 0);
-    
-    // Filtra projetos ativos
-    const candidates = projects.filter(p => p.status === 'ACTIVE');
-    
-    // Encontra aqueles onde a aposta é posterior ao início do projeto
-    const eligible = candidates.filter(p => {
-      const pStart = new Date(p.startDate);
-      pStart.setHours(0, 0, 0, 0);
-      return betDate.getTime() >= pStart.getTime();
-    });
-    
-    // Se houver múltiplos, escolhe o que começou mais recentemente (contexto mais específico)
-    // Ex: Projeto A (Jan 1), Projeto B (Fev 1). Aposta em Março vai para B.
-    if (eligible.length > 0) {
-      return eligible.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0].id;
-    }
-    return undefined;
+  // Tenta encontrar um projeto associado às tags da aposta
+  const getProjectIdFromTags = (tags: string[] = []) => {
+     // Encontra um projeto ativo cuja 'tag' esteja incluída nas tags da aposta
+     const matchedProject = projects.find(p => 
+        p.status === 'ACTIVE' && p.tag && tags.some(t => t.toLowerCase() === p.tag!.toLowerCase())
+     );
+     return matchedProject?.id;
   };
 
   const addBet = (bet: Bet) => {
     const betToSave = { ...bet };
     
-    // Lógica para Projetos
-    let targetProjectId = betToSave.projectId;
-
-    // Se não tiver projeto definido manualmente, tenta atribuir automaticamente
-    if (!targetProjectId) {
-      targetProjectId = getAutoProjectId(betToSave.date);
-      betToSave.projectId = targetProjectId;
+    // Se não tiver projeto definido manualmente, tenta atribuir via Tags
+    if (!betToSave.projectId && betToSave.tags) {
+      betToSave.projectId = getProjectIdFromTags(betToSave.tags);
     }
 
     // Se o projeto for do tipo BALIZA_ZERO, atribui o índice da dezena ativa
-    if (targetProjectId) {
-        const project = projects.find(p => p.id === targetProjectId);
+    if (betToSave.projectId) {
+        const project = projects.find(p => p.id === betToSave.projectId);
         if (project && project.projectType === 'BALIZA_ZERO') {
             // Usa o índice ativo ou 0 se não existir
             betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
@@ -281,23 +263,22 @@ const App: React.FC = () => {
     }));
   };
 
-  // Função para associar apostas existentes a um projeto com base na data de início
-  const assignBetsToProject = (projectId: string, startDate: string) => {
-    const projectStart = new Date(startDate);
-    projectStart.setHours(0, 0, 0, 0); 
-    
-    setBets(prev => prev.map(b => {
-      const betDate = new Date(b.date);
-      betDate.setHours(0, 0, 0, 0);
+  // Função para associar apostas existentes a um projeto com base na TAG
+  // (Anteriormente era por data, agora renomeado para fazer sentido ou pode ser removido se a lógica estiver no ProjectsView)
+  const assignBetsToProject = (projectId: string, projectTag: string) => {
+    if (!projectTag) return;
 
-      if (betDate.getTime() >= projectStart.getTime()) {
-        // Se for baliza zero, atribui dezena 0 por defeito a apostas antigas
-        const proj = projects.find(p => p.id === projectId);
-        const updates: Partial<Bet> = { projectId };
-        if (proj?.projectType === 'BALIZA_ZERO') {
-            updates.dezenaIndex = 0; 
-        }
-        return { ...b, ...updates };
+    setBets(prev => prev.map(b => {
+      // Se a aposta tem a tag do projeto e ainda não tem projeto (ou queremos forçar), atribui
+      if (b.tags?.some(t => t.toLowerCase() === projectTag.toLowerCase())) {
+         const proj = projects.find(p => p.id === projectId);
+         const updates: Partial<Bet> = { projectId };
+         
+         // Se for Baliza Zero, garantir índice (default 0 para retroativos, ou manter se já tiver)
+         if (proj?.projectType === 'BALIZA_ZERO' && b.dezenaIndex === undefined) {
+             updates.dezenaIndex = 0; 
+         }
+         return { ...b, ...updates };
       }
       return b;
     }));
@@ -467,13 +448,18 @@ const App: React.FC = () => {
         {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
         {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => setMethodologiesList([...methodologiesList, m])} onDelete={(m) => setMethodologiesList(methodologiesList.filter(x => x !== m))} currency={currency} />}
         {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => setTagsList([...tagsList, t])} onDelete={(t) => setTagsList(tagsList.filter(x => x !== t))} />}
-        {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} />}
+        {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} availableTags={tagsList} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects }} onDataImport={handleDataImport} />}
         {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} />}
 
         {showCSVModal && <CSVImporter onImport={(newBets) => { 
             const betsWithProjects = newBets.map(b => {
-                let pid = b.projectId || getAutoProjectId(b.date);
+                let pid = b.projectId;
+                // Tenta atribuir projeto pela TAG se ainda não tiver
+                if (!pid && b.tags) {
+                   pid = getProjectIdFromTags(b.tags);
+                }
+
                 let dezIndex = 0;
                 if(pid) {
                    const p = projects.find(pr => pr.id === pid);

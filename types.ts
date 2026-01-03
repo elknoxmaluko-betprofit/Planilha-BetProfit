@@ -23,6 +23,7 @@ export interface Project {
   stakeGoal?: number;      
   bankrollDivision?: number;
   activeDezenaIndex?: number; // Novo: Índice da dezena atualmente ativa (0, 1, 2...)
+  tag?: string; // Novo: Tag identificadora do projeto para capturar apostas automaticamente
 }
 
 export interface Bet {
