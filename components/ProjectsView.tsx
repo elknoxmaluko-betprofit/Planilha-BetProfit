@@ -52,13 +52,37 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
       const currentBankroll = proj.startBankroll + totalProfit;
       
       let progress = 0;
+      let currentDezenaStake = 0; // Nova variável para stake fixa por dezena
       
       if (proj.projectType === 'BALIZA_ZERO' && proj.stakeGoal && proj.bankrollDivision) {
-        const currentStake = currentBankroll / proj.bankrollDivision;
+        // Cálculo da Stake Teórica para a Dezena Atual
+        let tempBank = proj.startBankroll;
+        const div = proj.bankrollDivision;
+        const activeIdx = proj.activeDezenaIndex || 0;
+        
+        for (let i = 0; i <= activeIdx; i++) {
+           currentDezenaStake = tempBank / div;
+           const goal = currentDezenaStake * 2.5;
+           tempBank += goal;
+           
+           // Limite pela Stake Goal, se definido (igual ao BalizaZeroView)
+           if (proj.stakeGoal && currentDezenaStake >= proj.stakeGoal && i < activeIdx) {
+              currentDezenaStake = proj.stakeGoal; // Cap stake
+              // Recalcula crescimento com stake limitada se necessário, mas simplificando:
+              // Se atingiu a meta, mantemos a meta.
+           }
+        }
+        // Se ultrapassar meta, fixa na meta
+        if (proj.stakeGoal && currentDezenaStake > proj.stakeGoal) {
+            currentDezenaStake = proj.stakeGoal;
+        }
+
+        // Progresso visual (baseado em stake atual vs stake goal)
         const startStake = proj.startBankroll / proj.bankrollDivision;
         progress = proj.stakeGoal > startStake 
-          ? ((currentStake - startStake) / (proj.stakeGoal - startStake)) * 100
+          ? ((currentDezenaStake - startStake) / (proj.stakeGoal - startStake)) * 100
           : 0;
+
       } else if (proj.goal) {
         progress = ((currentBankroll - proj.startBankroll) / (proj.goal - proj.startBankroll)) * 100;
       }
@@ -85,7 +109,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         winRate: settledBets.length > 0 ? (settledBets.filter(b => b.status === BetStatus.WON).length / settledBets.length) * 100 : 0,
         progress: Math.max(0, Math.min(100, progress)),
         chartData,
-        roi
+        roi,
+        currentDezenaStake // Disponibiliza no objeto
       };
     });
   }, [projects, bets]);
@@ -362,7 +387,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
               </div>
               {proj.projectType === 'BALIZA_ZERO' && (
                 <div className="text-right mt-1">
-                   <p className="text-[10px] text-amber-500 font-bold">Stake Atual: {(proj.currentBankroll / (proj.bankrollDivision || 10)).toFixed(2)}{currency}</p>
+                   <p className="text-[10px] text-amber-500 font-bold border border-amber-500/20 bg-amber-500/10 px-2 py-1 inline-block rounded">
+                      Stake Atual: {proj.currentDezenaStake ? proj.currentDezenaStake.toFixed(2) : '0.00'}{currency}
+                   </p>
                 </div>
               )}
             </div>
