@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import Logo from './Logo';
+import { supabase } from '../supabaseClient';
 
 interface LoginProps {
   onLogin: () => void;
@@ -12,38 +13,36 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
     
-    setTimeout(() => {
-      const usersRaw = localStorage.getItem('betprofit_users');
-      const users = usersRaw ? JSON.parse(usersRaw) : [];
-
+    try {
       if (isRegister) {
-        const userExists = users.some((u: any) => u.email === email);
-        if (userExists) {
-          setError('Este e-mail já está registado.');
-          setLoading(false);
-          return;
-        }
-
-        const newUser = { email, password };
-        users.push(newUser);
-        localStorage.setItem('betprofit_users', JSON.stringify(users));
-        onLogin();
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setMessage('Registo efetuado! Verifique o seu e-mail para confirmar a conta ou faça login se a confirmação não for necessária.');
+        setIsRegister(false);
       } else {
-        const user = users.find((u: any) => u.email === email && u.password === password);
-        if (user) {
-          onLogin();
-        } else {
-          setError('Credenciais inválidas. Verifique o e-mail e a senha.');
-        }
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        onLogin();
       }
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro na autenticação.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -69,6 +68,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-xs animate-in slide-in-from-top-2">
               <i className="fas fa-exclamation-circle text-sm"></i>
               {error}
+            </div>
+          )}
+          
+          {message && (
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3 text-emerald-400 text-xs animate-in slide-in-from-top-2">
+              <i className="fas fa-check-circle text-sm"></i>
+              {message}
             </div>
           )}
 
@@ -126,6 +132,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onClick={() => {
                   setIsRegister(!isRegister);
                   setError(null);
+                  setMessage(null);
                 }}
                 className="ml-2 text-yellow-400 font-bold hover:underline"
               >

@@ -15,129 +15,157 @@ import CSVImporter from './components/CSVImporter';
 import Login from './components/Login';
 import DatabaseManager from './components/DatabaseManager';
 import Logo from './components/Logo';
+import { supabase } from './supabaseClient';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('betprofit_auth') === 'true';
-  });
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [bets, setBets] = useState<Bet[]>(() => {
-    const saved = localStorage.getItem('betfair_bets');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [currency, setCurrency] = useState<string>(() => {
-    return localStorage.getItem('betprofit_currency') || '€';
-  });
+  // Estados de Dados
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currency, setCurrency] = useState<string>('€');
+  const [monthlyStakes, setMonthlyStakes] = useState<Record<string, number>>({});
+  const [monthlyBankrolls, setMonthlyBankrolls] = useState<Record<string, number>>({});
+  const [methodologiesList, setMethodologiesList] = useState<string[]>([]);
+  const [tagsList, setTagsList] = useState<string[]>([]);
+  const [leaguesList, setLeaguesList] = useState<string[]>([]);
 
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('betprofit_projects');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [monthlyStakes, setMonthlyStakes] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('betfair_monthly_stakes');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [monthlyBankrolls, setMonthlyBankrolls] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('betfair_monthly_bankrolls');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [methodologiesList, setMethodologiesList] = useState<string[]>(() => {
-    const saved = localStorage.getItem('betfair_methodologies');
-    return saved ? JSON.parse(saved) : ['Lay the Draw', 'Back Favorito', 'Over 2.5', 'Match Odds'];
-  });
-
-  const [tagsList, setTagsList] = useState<string[]>(() => {
-    const saved = localStorage.getItem('betfair_tags');
-    return saved ? JSON.parse(saved) : ['Live', 'Pré-Live', 'Premier League', 'Champions League'];
-  });
-
-  const [leaguesList, setLeaguesList] = useState<string[]>(() => {
-    const saved = localStorage.getItem('betfair_leagues');
-    return saved ? JSON.parse(saved) : ['Premier League', 'La Liga', 'Liga Portugal', 'Champions League'];
-  });
-
+  // Estados de UI
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  const teamsList = useMemo(() => {
-    const teams = new Set<string>();
-    bets.forEach(bet => {
-      const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i);
-      parts.forEach(p => {
-        const trimmed = p.trim();
-        if (trimmed && trimmed.length > 1) {
-          teams.add(trimmed);
-        }
-      });
-      if (bet.team) teams.add(bet.team);
-    });
-    return Array.from(teams).sort();
-  }, [bets]);
-  
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const startYear = Math.max(2025, currentYear);
     return { month: now.getMonth(), year: startYear };
   });
-
   const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data'>('dashboard');
   const [showCSVModal, setShowCSVModal] = useState(false);
 
+  // Inicialização de Sessão
   useEffect(() => {
-    localStorage.setItem('betfair_bets', JSON.stringify(bets));
-  }, [bets]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('betprofit_currency', currency);
-  }, [currency]);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('betprofit_projects', JSON.stringify(projects));
-  }, [projects]);
+    return () => subscription.unsubscribe();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('betfair_monthly_stakes', JSON.stringify(monthlyStakes));
-    localStorage.setItem('betfair_monthly_bankrolls', JSON.stringify(monthlyBankrolls));
-    localStorage.setItem('betfair_methodologies', JSON.stringify(methodologiesList));
-    localStorage.setItem('betfair_tags', JSON.stringify(tagsList));
-    localStorage.setItem('betfair_leagues', JSON.stringify(leaguesList));
-  }, [monthlyStakes, monthlyBankrolls, methodologiesList, tagsList, leaguesList]);
+  // Busca de Dados do Supabase
+  const fetchData = async (userId: string) => {
+    setLoading(true);
+    try {
+      // 1. Fetch User Settings
+      let { data: settings } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+      
+      if (!settings) {
+        // Inicializa configurações padrão se não existirem
+        const defaultSettings = {
+           user_id: userId,
+           currency: '€',
+           methodologies: ['Lay the Draw', 'Back Favorito', 'Over 2.5', 'Match Odds'],
+           tags: ['Live', 'Pré-Live', 'Premier League', 'Champions League'],
+           leagues: ['Premier League', 'La Liga', 'Liga Portugal', 'Champions League'],
+           monthly_stakes: {},
+           monthly_bankrolls: {}
+        };
+        await supabase.from('user_settings').insert(defaultSettings);
+        settings = defaultSettings;
+      }
+
+      setCurrency(settings.currency);
+      setMethodologiesList(settings.methodologies || []);
+      setTagsList(settings.tags || []);
+      setLeaguesList(settings.leagues || []);
+      setMonthlyStakes(settings.monthly_stakes || {});
+      setMonthlyBankrolls(settings.monthly_bankrolls || {});
+
+      // 2. Fetch Projects - Mapeamento de snake_case para camelCase
+      const { data: projectsData } = await supabase.from('projects').select('*').eq('user_id', userId);
+      if (projectsData) {
+        setProjects(projectsData.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          startBankroll: p.start_bankroll,
+          goal: p.goal,
+          startDate: p.start_date,
+          status: p.status,
+          description: p.description,
+          projectType: p.project_type,
+          stakeGoal: p.stake_goal,
+          bankrollDivision: p.bankroll_division,
+          activeDezenaIndex: p.active_dezena_index,
+          tag: p.tag
+        })));
+      }
+
+      // 3. Fetch Bets
+      const { data: betsData } = await supabase.from('bets').select('*').eq('user_id', userId).order('date', { ascending: false });
+      if (betsData) {
+        setBets(betsData.map((b: any) => ({
+          id: b.id,
+          date: b.date,
+          event: b.event,
+          market: b.market,
+          type: b.type,
+          odds: b.odds,
+          stake: b.stake,
+          stakePercentage: b.stake_percentage,
+          profit: b.profit,
+          profitPercentage: b.profit_percentage,
+          status: b.status,
+          methodology: b.methodology,
+          tags: b.tags,
+          league: b.league,
+          team: b.team,
+          projectId: b.project_id,
+          dezenaIndex: b.dezena_index
+        })));
+      }
+
+    } catch (error) {
+      console.error('Erro ao buscar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sincronização de Settings
+  const updateSettings = async (updates: any) => {
+    if (!session) return;
+    try {
+      await supabase.from('user_settings').update(updates).eq('user_id', session.user.id);
+    } catch (error) {
+      console.error('Erro ao atualizar settings:', error);
+    }
+  };
 
   const handleLogin = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem('betprofit_auth', 'true');
+    // Autenticação gerida pelo Login.tsx e useEffect
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('betprofit_auth');
-  };
-
-  const handleDataImport = (data: any) => {
-    if (data.bets) setBets(data.bets);
-    if (data.projects) setProjects(data.projects);
-    if (data.monthlyStakes) setMonthlyStakes(data.monthlyStakes);
-    if (data.monthlyBankrolls) setMonthlyBankrolls(data.monthlyBankrolls);
-    if (data.methodologies) setMethodologiesList(data.methodologies);
-    if (data.tags) setTagsList(data.tags);
-    if (data.leagues) setLeaguesList(data.leagues);
-    setView('dashboard');
-    setIsMobileMenuOpen(false);
-  };
-
-  const handleViewChange = (newView: typeof view) => {
-    setView(newView);
-    setIsMobileMenuOpen(false);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setBets([]);
+    setProjects([]);
   };
 
   const monthKey = `${selectedDate.year}-${selectedDate.month}`;
   const currentMonthlyStake = monthlyStakes[monthKey] || 0;
   const currentMonthlyBankroll = monthlyBankrolls[monthKey] || 0;
 
+  // Filtros e Cálculos
   const filteredBets = useMemo(() => {
     return bets.filter(bet => {
       const d = new Date(bet.date);
@@ -152,18 +180,27 @@ const App: React.FC = () => {
     });
   }, [bets, selectedDate.year]);
 
+  const teamsList = useMemo(() => {
+    const teams = new Set<string>();
+    bets.forEach(bet => {
+      const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i);
+      parts.forEach(p => {
+        const trimmed = p.trim();
+        if (trimmed && trimmed.length > 1) {
+          teams.add(trimmed);
+        }
+      });
+      if (bet.team) teams.add(bet.team);
+    });
+    return Array.from(teams).sort();
+  }, [bets]);
+
   const stats: Stats = useMemo(() => {
     const total = filteredBets.length;
     if (total === 0) return { 
-      totalBets: 0, 
-      winRate: 0, 
-      totalProfit: 0, 
-      roi: 0, 
-      yield: 0, 
-      monthlyStake: currentMonthlyStake,
-      monthlyBankroll: currentMonthlyBankroll,
-      uniqueMarketsCount: 0,
-      profitInStakes: 0
+      totalBets: 0, winRate: 0, totalProfit: 0, roi: 0, yield: 0, 
+      monthlyStake: currentMonthlyStake, monthlyBankroll: currentMonthlyBankroll, 
+      uniqueMarketsCount: 0, profitInStakes: 0
     };
 
     const settledBets = filteredBets.filter(b => b.status !== BetStatus.PENDING);
@@ -186,113 +223,203 @@ const App: React.FC = () => {
     };
   }, [filteredBets, currentMonthlyStake, currentMonthlyBankroll]);
 
-  const months = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
+  // CRUD Operations
 
-  const years = Array.from({ length: 2050 - 2025 + 1 }, (_, i) => 2025 + i);
-
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
-  }
-
-  // Tenta encontrar um projeto associado às tags da aposta
   const getProjectIdFromTags = (tags: string[] = []) => {
-     // Encontra um projeto ativo cuja 'tag' esteja incluída nas tags da aposta
      const matchedProject = projects.find(p => 
         p.status === 'ACTIVE' && p.tag && tags.some(t => t.toLowerCase() === p.tag!.toLowerCase())
      );
      return matchedProject?.id;
   };
 
-  const addBet = (bet: Bet) => {
+  const addBet = async (bet: Bet) => {
+    if (!session) return;
     const betToSave = { ...bet };
     
-    // Se não tiver projeto definido manualmente, tenta atribuir via Tags
     if (!betToSave.projectId && betToSave.tags) {
       betToSave.projectId = getProjectIdFromTags(betToSave.tags);
     }
-
-    // Se o projeto for do tipo BALIZA_ZERO, atribui o índice da dezena ativa
     if (betToSave.projectId) {
         const project = projects.find(p => p.id === betToSave.projectId);
         if (project && project.projectType === 'BALIZA_ZERO') {
-            // Usa o índice ativo ou 0 se não existir
             betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
         }
     }
 
+    // Otimista Update
     setBets(prev => [betToSave, ...prev]);
     setView('bets');
-    setIsMobileMenuOpen(false);
+
+    // DB Insert
+    const { error } = await supabase.from('bets').insert({
+        user_id: session.user.id,
+        date: betToSave.date,
+        event: betToSave.event,
+        market: betToSave.market,
+        type: betToSave.type,
+        odds: betToSave.odds,
+        stake: betToSave.stake,
+        stake_percentage: betToSave.stakePercentage,
+        profit: betToSave.profit,
+        profit_percentage: betToSave.profitPercentage,
+        status: betToSave.status,
+        methodology: betToSave.methodology,
+        tags: betToSave.tags,
+        league: betToSave.league,
+        team: betToSave.team,
+        project_id: betToSave.projectId,
+        dezena_index: betToSave.dezenaIndex
+    });
+    if (error) console.error('Error adding bet', error);
   };
 
-  const updateBet = (id: string, updates: Partial<Bet>) => {
+  const updateBet = async (id: string, updates: Partial<Bet>) => {
     setBets(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+    
+    const dbUpdates: any = {};
+    if (updates.tags) dbUpdates.tags = updates.tags;
+    if (updates.league) dbUpdates.league = updates.league;
+    if (updates.methodology) dbUpdates.methodology = updates.methodology;
+    if (updates.projectId) dbUpdates.project_id = updates.projectId;
+    if (updates.dezenaIndex !== undefined) dbUpdates.dezena_index = updates.dezenaIndex;
+
+    const { error } = await supabase.from('bets').update(dbUpdates).eq('id', id);
+    if (error) console.error('Error updating bet', error);
   };
 
-  const deleteBet = (id: string) => {
+  const deleteBet = async (id: string) => {
     setBets(prev => prev.filter(b => b.id !== id));
+    await supabase.from('bets').delete().eq('id', id);
   };
 
-  const createProject = (project: Project) => {
-    // Inicializa Baliza Zero com índice 0
+  const createProject = async (project: Project) => {
     if (project.projectType === 'BALIZA_ZERO') {
         project.activeDezenaIndex = 0;
     }
     setProjects(prev => [...prev, project]);
+    
+    if(!session) return;
+
+    await supabase.from('projects').insert({
+        user_id: session.user.id,
+        name: project.name,
+        start_bankroll: project.startBankroll,
+        goal: project.goal,
+        start_date: project.startDate,
+        status: project.status,
+        description: project.description,
+        project_type: project.projectType,
+        stake_goal: project.stakeGoal,
+        bankroll_division: project.bankrollDivision,
+        active_dezena_index: project.activeDezenaIndex,
+        tag: project.tag
+    });
   };
 
-  const deleteProject = (id: string) => {
+  const deleteProject = async (id: string) => {
     setProjects(prev => prev.filter(p => p.id !== id));
+    await supabase.from('projects').delete().eq('id', id);
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
+  const updateProject = async (id: string, updates: Partial<Project>) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    
+    // Mapeamento para DB
+    const dbUpdates: any = {};
+    if (updates.activeDezenaIndex !== undefined) dbUpdates.active_dezena_index = updates.activeDezenaIndex;
+    if (updates.status) dbUpdates.status = updates.status;
+    
+    await supabase.from('projects').update(dbUpdates).eq('id', id);
   };
 
-  // Função para avançar manualmente a Dezena (Validar Meta)
   const advanceProjectDezena = (projectId: string) => {
-    setProjects(prev => prev.map(p => {
-        if (p.id === projectId && p.projectType === 'BALIZA_ZERO') {
-            const currentIndex = p.activeDezenaIndex ?? 0;
-            return { ...p, activeDezenaIndex: currentIndex + 1 };
-        }
-        return p;
-    }));
+    const project = projects.find(p => p.id === projectId);
+    if (project && project.projectType === 'BALIZA_ZERO') {
+        const newIndex = (project.activeDezenaIndex ?? 0) + 1;
+        updateProject(projectId, { activeDezenaIndex: newIndex });
+    }
   };
 
-  // Função para associar apostas existentes a um projeto com base na TAG
-  // (Anteriormente era por data, agora renomeado para fazer sentido ou pode ser removido se a lógica estiver no ProjectsView)
   const assignBetsToProject = (projectId: string, projectTag: string) => {
     if (!projectTag) return;
-
+    
+    // Atualiza localmente
+    const betsToUpdate: string[] = [];
     setBets(prev => prev.map(b => {
-      // Se a aposta tem a tag do projeto e ainda não tem projeto (ou queremos forçar), atribui
       if (b.tags?.some(t => t.toLowerCase() === projectTag.toLowerCase())) {
-         const proj = projects.find(p => p.id === projectId);
+         betsToUpdate.push(b.id);
          const updates: Partial<Bet> = { projectId };
-         
-         // Se for Baliza Zero, garantir índice (default 0 para retroativos, ou manter se já tiver)
-         if (proj?.projectType === 'BALIZA_ZERO' && b.dezenaIndex === undefined) {
-             updates.dezenaIndex = 0; 
-         }
+         if (b.dezenaIndex === undefined) updates.dezenaIndex = 0;
          return { ...b, ...updates };
       }
       return b;
     }));
+
+    // Atualiza no DB
+    if(betsToUpdate.length > 0) {
+        supabase.from('bets')
+            .update({ project_id: projectId, dezena_index: 0 })
+            .in('id', betsToUpdate)
+            .then(({ error }) => { if(error) console.error(error); });
+    }
+  };
+
+  // List Management (Saved to Settings)
+  const handleUpdateList = (listName: string, newList: string[]) => {
+      if (listName === 'methodologies') setMethodologiesList(newList);
+      if (listName === 'tags') setTagsList(newList);
+      if (listName === 'leagues') setLeaguesList(newList);
+      
+      updateSettings({ [listName]: newList });
   };
 
   const updateMonthlyBankroll = (val: string) => {
     const num = parseFloat(val) || 0;
-    setMonthlyBankrolls(prev => ({ ...prev, [monthKey]: num }));
+    const newMap = { ...monthlyBankrolls, [monthKey]: num };
+    setMonthlyBankrolls(newMap);
+    updateSettings({ monthly_bankrolls: newMap });
   };
 
   const updateMonthlyStake = (val: string) => {
     const num = parseFloat(val) || 0;
-    setMonthlyStakes(prev => ({ ...prev, [monthKey]: num }));
+    const newMap = { ...monthlyStakes, [monthKey]: num };
+    setMonthlyStakes(newMap);
+    updateSettings({ monthly_stakes: newMap });
   };
+
+  const handleCurrencyChange = (val: string) => {
+      setCurrency(val);
+      updateSettings({ currency: val });
+  };
+
+  const handleDataImport = (data: any) => {
+      // Importação local desabilitada ou convertida para lógica de merge com Supabase
+      // Por agora, mantemos apenas o refresh local
+      alert("A importação de backup JSON sobrescreve dados locais. Com a integração Supabase, use a importação CSV para adicionar apostas.");
+  };
+
+  const handleViewChange = (newView: typeof view) => {
+    setView(newView);
+    setIsMobileMenuOpen(false);
+  };
+
+  const months = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+  const years = Array.from({ length: 2050 - 2025 + 1 }, (_, i) => 2025 + i);
+
+  if (loading) {
+      return (
+          <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+              <div className="w-12 h-12 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin"></div>
+          </div>
+      );
+  }
+
+  if (!session) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-950 text-slate-100 font-sans relative">
@@ -329,12 +456,6 @@ const App: React.FC = () => {
         <div className="hidden lg:flex items-center gap-3 mb-8">
           <Logo size="sm" />
           <h1 className="text-2xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
-        </div>
-
-        {/* Mobile/Tablet-only logo inside drawer */}
-        <div className="lg:hidden flex items-center gap-3 mb-8 pb-4 border-b border-slate-800">
-          <Logo size="sm" />
-          <h1 className="text-xl font-bold tracking-tight text-white">Menu</h1>
         </div>
 
         <div className="space-y-2 overflow-y-auto flex-1 scrollbar-none">
@@ -374,6 +495,9 @@ const App: React.FC = () => {
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-800">
+           <div className="px-4 py-2 mb-2 text-xs text-slate-500 truncate">
+             {session.user.email}
+           </div>
            <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all text-lg font-medium">
              <i className="fas fa-sign-out-alt w-6"></i> Sair
            </button>
@@ -395,7 +519,7 @@ const App: React.FC = () => {
               <select 
                 className="bg-transparent border-none text-yellow-400 font-bold text-lg focus:ring-0 cursor-pointer outline-none" 
                 value={currency} 
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={(e) => handleCurrencyChange(e.target.value)}
               >
                 <option value="€" className="bg-slate-900">€ (EUR)</option>
                 <option value="R$" className="bg-slate-900">R$ (BRL)</option>
@@ -444,36 +568,47 @@ const App: React.FC = () => {
         {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} currency={currency} />}
         {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
         {view === 'markets' && <MarketsView bets={filteredBets} currency={currency} />}
-        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => setLeaguesList([...leaguesList, l])} onDelete={(l) => setLeaguesList(leaguesList.filter(x => x !== l))} currency={currency} />}
+        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} currency={currency} />}
         {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
-        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => setMethodologiesList([...methodologiesList, m])} onDelete={(m) => setMethodologiesList(methodologiesList.filter(x => x !== m))} currency={currency} />}
-        {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => setTagsList([...tagsList, t])} onDelete={(t) => setTagsList(tagsList.filter(x => x !== t))} />}
+        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} currency={currency} />}
+        {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} />}
         {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} availableTags={tagsList} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects }} onDataImport={handleDataImport} />}
         {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} />}
 
-        {showCSVModal && <CSVImporter onImport={(newBets) => { 
+        {showCSVModal && <CSVImporter onImport={async (newBets) => { 
             const betsWithProjects = newBets.map(b => {
                 let pid = b.projectId;
-                // Tenta atribuir projeto pela TAG se ainda não tiver
-                if (!pid && b.tags) {
-                   pid = getProjectIdFromTags(b.tags);
-                }
-
+                if (!pid && b.tags) pid = getProjectIdFromTags(b.tags);
                 let dezIndex = 0;
                 if(pid) {
                    const p = projects.find(pr => pr.id === pid);
                    if(p && p.projectType === 'BALIZA_ZERO') dezIndex = p.activeDezenaIndex ?? 0;
                 }
-                return {
-                    ...b,
-                    projectId: pid,
-                    dezenaIndex: dezIndex
-                };
+                return { ...b, projectId: pid, dezenaIndex: dezIndex };
             });
-            setBets(prev => [...betsWithProjects, ...prev]); 
-            setShowCSVModal(false); 
-            setView('bets'); 
+            
+            // Bulk insert
+            const { error } = await supabase.from('bets').insert(betsWithProjects.map(b => ({
+                 user_id: session.user.id,
+                 date: b.date,
+                 event: b.event,
+                 market: b.market,
+                 type: b.type,
+                 stake: b.stake,
+                 profit: b.profit,
+                 profit_percentage: b.profitPercentage,
+                 status: b.status,
+                 tags: [], // CSV não traz tags, default vazio
+                 project_id: b.projectId,
+                 dezena_index: b.dezenaIndex
+            })));
+
+            if(!error) {
+                setBets(prev => [...betsWithProjects, ...prev]); 
+                setShowCSVModal(false); 
+                setView('bets'); 
+            }
         }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
       </main>
     </div>
