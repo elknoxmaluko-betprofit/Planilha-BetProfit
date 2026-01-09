@@ -13,6 +13,7 @@ interface DatabaseManagerProps {
     leagues: string[];
     teams: string[];
     projects: any[];
+    currency: string;
   };
 }
 

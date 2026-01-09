@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Bet, BetStatus, Stats, Project } from './types';
 import Dashboard from './components/Dashboard';
@@ -12,26 +11,55 @@ import LeaguesView from './components/LeaguesView';
 import TeamsView from './components/TeamsView';
 import ProjectsView from './components/ProjectsView';
 import CSVImporter from './components/CSVImporter';
-import Login from './components/Login';
+import Login, { User } from './components/Login';
 import DatabaseManager from './components/DatabaseManager';
 import Logo from './components/Logo';
-import { supabase } from './supabaseClient';
 
-const App: React.FC = () => {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+// Inner component to handle data logic when user is authenticated
+const BetProfitApp: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
+  // --- HELPER FOR USER-SCOPED STORAGE KEYS ---
+  // If user ID is 'default' (legacy migration), use root keys to preserve data.
+  // Otherwise, suffix keys with user ID.
+  const getKey = (base: string) => user.id === 'default' ? base : `${base}_${user.id}`;
 
-  // Estados de Dados
-  const [bets, setBets] = useState<Bet[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [currency, setCurrency] = useState<string>('€');
-  const [monthlyStakes, setMonthlyStakes] = useState<Record<string, number>>({});
-  const [monthlyBankrolls, setMonthlyBankrolls] = useState<Record<string, number>>({});
-  const [methodologiesList, setMethodologiesList] = useState<string[]>([]);
-  const [tagsList, setTagsList] = useState<string[]>([]);
-  const [leaguesList, setLeaguesList] = useState<string[]>([]);
+  const loadState = <T,>(baseKey: string, fallback: T): T => {
+    try {
+      const key = getKey(baseKey);
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : fallback;
+    } catch (e) {
+      console.error(`Erro ao carregar ${baseKey}`, e);
+      return fallback;
+    }
+  };
 
-  // Estados de UI
+  const [bets, setBets] = useState<Bet[]>(() => loadState('betprofit_bets', []));
+  const [projects, setProjects] = useState<Project[]>(() => loadState('betprofit_projects', []));
+  
+  // Settings agrupados
+  const [settings, setSettings] = useState(() => loadState('betprofit_settings', {
+    currency: '€',
+    methodologies: ['Lay the Draw', 'Back Favorito', 'Over 2.5', 'Match Odds'],
+    tags: ['Live', 'Pré-Live', 'Premier League', 'Champions League'],
+    leagues: ['Premier League', 'La Liga', 'Liga Portugal', 'Champions League'],
+    monthlyStakes: {} as Record<string, number>,
+    monthlyBankrolls: {} as Record<string, number>
+  }));
+
+  // Desestruturação
+  const currency = settings.currency;
+  const methodologiesList = settings.methodologies;
+  const tagsList = settings.tags;
+  const leaguesList = settings.leagues;
+  const monthlyStakes = settings.monthlyStakes;
+  const monthlyBankrolls = settings.monthlyBankrolls;
+
+  // --- PERSISTENCE EFFECTS ---
+  useEffect(() => { localStorage.setItem(getKey('betprofit_bets'), JSON.stringify(bets)); }, [bets, user.id]);
+  useEffect(() => { localStorage.setItem(getKey('betprofit_projects'), JSON.stringify(projects)); }, [projects, user.id]);
+  useEffect(() => { localStorage.setItem(getKey('betprofit_settings'), JSON.stringify(settings)); }, [settings, user.id]);
+
+  // --- UI STATE ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -42,130 +70,122 @@ const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data'>('dashboard');
   const [showCSVModal, setShowCSVModal] = useState(false);
 
-  // Inicialização de Sessão
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchData(session.user.id);
-      else setLoading(false);
-    });
+  // --- HELPER FUNCTIONS ---
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchData(session.user.id);
-      else setLoading(false);
-    });
+  const updateSettings = (updates: Partial<typeof settings>) => {
+    setSettings(prev => ({ ...prev, ...updates }));
+  };
 
-    return () => subscription.unsubscribe();
-  }, []);
+  const handleUpdateList = (listName: 'methodologies' | 'tags' | 'leagues', newList: string[]) => {
+      updateSettings({ [listName]: newList });
+  };
 
-  // Busca de Dados do Supabase
-  const fetchData = async (userId: string) => {
-    setLoading(true);
-    try {
-      // 1. Fetch User Settings
-      let { data: settings } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
-      
-      if (!settings) {
-        // Inicializa configurações padrão se não existirem
-        const defaultSettings = {
-           user_id: userId,
-           currency: '€',
-           methodologies: ['Lay the Draw', 'Back Favorito', 'Over 2.5', 'Match Odds'],
-           tags: ['Live', 'Pré-Live', 'Premier League', 'Champions League'],
-           leagues: ['Premier League', 'La Liga', 'Liga Portugal', 'Champions League'],
-           monthly_stakes: {},
-           monthly_bankrolls: {}
-        };
-        await supabase.from('user_settings').insert(defaultSettings);
-        settings = defaultSettings;
-      }
+  const updateMonthlyBankroll = (val: string) => {
+    const num = parseFloat(val) || 0;
+    const newMap = { ...monthlyBankrolls, [`${selectedDate.year}-${selectedDate.month}`]: num };
+    updateSettings({ monthlyBankrolls: newMap });
+  };
 
-      setCurrency(settings.currency);
-      setMethodologiesList(settings.methodologies || []);
-      setTagsList(settings.tags || []);
-      setLeaguesList(settings.leagues || []);
-      setMonthlyStakes(settings.monthly_stakes || {});
-      setMonthlyBankrolls(settings.monthly_bankrolls || {});
+  const updateMonthlyStake = (val: string) => {
+    const num = parseFloat(val) || 0;
+    const newMap = { ...monthlyStakes, [`${selectedDate.year}-${selectedDate.month}`]: num };
+    updateSettings({ monthlyStakes: newMap });
+  };
 
-      // 2. Fetch Projects - Mapeamento de snake_case para camelCase
-      const { data: projectsData } = await supabase.from('projects').select('*').eq('user_id', userId);
-      if (projectsData) {
-        setProjects(projectsData.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          startBankroll: p.start_bankroll,
-          goal: p.goal,
-          startDate: p.start_date,
-          status: p.status,
-          description: p.description,
-          projectType: p.project_type,
-          stakeGoal: p.stake_goal,
-          bankrollDivision: p.bankroll_division,
-          activeDezenaIndex: p.active_dezena_index,
-          tag: p.tag
-        })));
-      }
+  const handleCurrencyChange = (val: string) => {
+      updateSettings({ currency: val });
+  };
 
-      // 3. Fetch Bets
-      const { data: betsData } = await supabase.from('bets').select('*').eq('user_id', userId).order('date', { ascending: false });
-      if (betsData) {
-        setBets(betsData.map((b: any) => ({
-          id: b.id,
-          date: b.date,
-          event: b.event,
-          market: b.market,
-          type: b.type,
-          odds: b.odds,
-          stake: b.stake,
-          stakePercentage: b.stake_percentage,
-          profit: b.profit,
-          profitPercentage: b.profit_percentage,
-          status: b.status,
-          methodology: b.methodology,
-          tags: b.tags,
-          league: b.league,
-          team: b.team,
-          projectId: b.project_id,
-          dezenaIndex: b.dezena_index
-        })));
-      }
+  // --- DATA LOGIC ---
 
-    } catch (error) {
-      console.error('Erro ao buscar dados:', error);
-    } finally {
-      setLoading(false);
+  const getProjectIdFromTags = (tags: string[] = []) => {
+     const matchedProject = projects.find(p => 
+        p.status === 'ACTIVE' && p.tag && tags.some(t => t.toLowerCase() === p.tag!.toLowerCase())
+     );
+     return matchedProject?.id;
+  };
+
+  const addBet = async (bet: Bet) => {
+    const betToSave = { ...bet };
+    
+    // Auto-associação a projeto
+    if (!betToSave.projectId && betToSave.tags) {
+      betToSave.projectId = getProjectIdFromTags(betToSave.tags);
     }
-  };
-
-  // Sincronização de Settings
-  const updateSettings = async (updates: any) => {
-    if (!session) return;
-    try {
-      await supabase.from('user_settings').update(updates).eq('user_id', session.user.id);
-    } catch (error) {
-      console.error('Erro ao atualizar settings:', error);
+    // Auto-associação de dezena se for projeto Baliza Zero
+    if (betToSave.projectId) {
+        const project = projects.find(p => p.id === betToSave.projectId);
+        if (project && project.projectType === 'BALIZA_ZERO') {
+            betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
+        }
     }
+
+    setBets(prev => [betToSave, ...prev]);
+    setView('bets');
   };
 
-  const handleLogin = () => {
-    // Autenticação gerida pelo Login.tsx e useEffect
+  const updateBet = async (id: string, updates: Partial<Bet>) => {
+    setBets(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setBets([]);
-    setProjects([]);
+  const deleteBet = async (id: string) => {
+    setBets(prev => prev.filter(b => b.id !== id));
   };
+
+  const createProject = async (project: Project) => {
+    if (project.projectType === 'BALIZA_ZERO') {
+        project.activeDezenaIndex = 0;
+    }
+    setProjects(prev => [...prev, project]);
+  };
+
+  const deleteProject = async (id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  const advanceProjectDezena = (projectId: string) => {
+    updateProject(projectId, { 
+        activeDezenaIndex: (projects.find(p => p.id === projectId)?.activeDezenaIndex ?? 0) + 1 
+    });
+  };
+
+  const assignBetsToProject = (projectId: string, projectTag: string) => {
+    if (!projectTag) return;
+    setBets(prev => prev.map(b => {
+      if (b.tags?.some(t => t.toLowerCase() === projectTag.toLowerCase())) {
+         return { ...b, projectId, dezenaIndex: 0 };
+      }
+      return b;
+    }));
+  };
+
+  const handleDataImport = (data: any) => {
+      if (data.bets) setBets(data.bets);
+      if (data.projects) setProjects(data.projects);
+      if (data.methodologies || data.tags || data.leagues || data.monthlyStakes || data.monthlyBankrolls || data.currency) {
+          setSettings(prev => ({
+              ...prev,
+              currency: data.currency || prev.currency,
+              methodologies: data.methodologies || prev.methodologies,
+              tags: data.tags || prev.tags,
+              leagues: data.leagues || prev.leagues,
+              monthlyStakes: data.monthlyStakes || prev.monthlyStakes,
+              monthlyBankrolls: data.monthlyBankrolls || prev.monthlyBankrolls
+          }));
+      }
+      setView('dashboard');
+  };
+
+  // --- FILTERS & MEMOS ---
 
   const monthKey = `${selectedDate.year}-${selectedDate.month}`;
   const currentMonthlyStake = monthlyStakes[monthKey] || 0;
   const currentMonthlyBankroll = monthlyBankrolls[monthKey] || 0;
 
-  // Filtros e Cálculos
   const filteredBets = useMemo(() => {
     return bets.filter(bet => {
       const d = new Date(bet.date);
@@ -223,181 +243,6 @@ const App: React.FC = () => {
     };
   }, [filteredBets, currentMonthlyStake, currentMonthlyBankroll]);
 
-  // CRUD Operations
-
-  const getProjectIdFromTags = (tags: string[] = []) => {
-     const matchedProject = projects.find(p => 
-        p.status === 'ACTIVE' && p.tag && tags.some(t => t.toLowerCase() === p.tag!.toLowerCase())
-     );
-     return matchedProject?.id;
-  };
-
-  const addBet = async (bet: Bet) => {
-    if (!session) return;
-    const betToSave = { ...bet };
-    
-    if (!betToSave.projectId && betToSave.tags) {
-      betToSave.projectId = getProjectIdFromTags(betToSave.tags);
-    }
-    if (betToSave.projectId) {
-        const project = projects.find(p => p.id === betToSave.projectId);
-        if (project && project.projectType === 'BALIZA_ZERO') {
-            betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
-        }
-    }
-
-    // Otimista Update
-    setBets(prev => [betToSave, ...prev]);
-    setView('bets');
-
-    // DB Insert
-    const { error } = await supabase.from('bets').insert({
-        user_id: session.user.id,
-        date: betToSave.date,
-        event: betToSave.event,
-        market: betToSave.market,
-        type: betToSave.type,
-        odds: betToSave.odds,
-        stake: betToSave.stake,
-        stake_percentage: betToSave.stakePercentage,
-        profit: betToSave.profit,
-        profit_percentage: betToSave.profitPercentage,
-        status: betToSave.status,
-        methodology: betToSave.methodology,
-        tags: betToSave.tags,
-        league: betToSave.league,
-        team: betToSave.team,
-        project_id: betToSave.projectId,
-        dezena_index: betToSave.dezenaIndex
-    });
-    if (error) console.error('Error adding bet', error);
-  };
-
-  const updateBet = async (id: string, updates: Partial<Bet>) => {
-    setBets(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
-    
-    const dbUpdates: any = {};
-    if (updates.tags) dbUpdates.tags = updates.tags;
-    if (updates.league) dbUpdates.league = updates.league;
-    if (updates.methodology) dbUpdates.methodology = updates.methodology;
-    if (updates.projectId) dbUpdates.project_id = updates.projectId;
-    if (updates.dezenaIndex !== undefined) dbUpdates.dezena_index = updates.dezenaIndex;
-
-    const { error } = await supabase.from('bets').update(dbUpdates).eq('id', id);
-    if (error) console.error('Error updating bet', error);
-  };
-
-  const deleteBet = async (id: string) => {
-    setBets(prev => prev.filter(b => b.id !== id));
-    await supabase.from('bets').delete().eq('id', id);
-  };
-
-  const createProject = async (project: Project) => {
-    if (project.projectType === 'BALIZA_ZERO') {
-        project.activeDezenaIndex = 0;
-    }
-    setProjects(prev => [...prev, project]);
-    
-    if(!session) return;
-
-    await supabase.from('projects').insert({
-        user_id: session.user.id,
-        name: project.name,
-        start_bankroll: project.startBankroll,
-        goal: project.goal,
-        start_date: project.startDate,
-        status: project.status,
-        description: project.description,
-        project_type: project.projectType,
-        stake_goal: project.stakeGoal,
-        bankroll_division: project.bankrollDivision,
-        active_dezena_index: project.activeDezenaIndex,
-        tag: project.tag
-    });
-  };
-
-  const deleteProject = async (id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
-    await supabase.from('projects').delete().eq('id', id);
-  };
-
-  const updateProject = async (id: string, updates: Partial<Project>) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    
-    // Mapeamento para DB
-    const dbUpdates: any = {};
-    if (updates.activeDezenaIndex !== undefined) dbUpdates.active_dezena_index = updates.activeDezenaIndex;
-    if (updates.status) dbUpdates.status = updates.status;
-    
-    await supabase.from('projects').update(dbUpdates).eq('id', id);
-  };
-
-  const advanceProjectDezena = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (project && project.projectType === 'BALIZA_ZERO') {
-        const newIndex = (project.activeDezenaIndex ?? 0) + 1;
-        updateProject(projectId, { activeDezenaIndex: newIndex });
-    }
-  };
-
-  const assignBetsToProject = (projectId: string, projectTag: string) => {
-    if (!projectTag) return;
-    
-    // Atualiza localmente
-    const betsToUpdate: string[] = [];
-    setBets(prev => prev.map(b => {
-      if (b.tags?.some(t => t.toLowerCase() === projectTag.toLowerCase())) {
-         betsToUpdate.push(b.id);
-         const updates: Partial<Bet> = { projectId };
-         if (b.dezenaIndex === undefined) updates.dezenaIndex = 0;
-         return { ...b, ...updates };
-      }
-      return b;
-    }));
-
-    // Atualiza no DB
-    if(betsToUpdate.length > 0) {
-        supabase.from('bets')
-            .update({ project_id: projectId, dezena_index: 0 })
-            .in('id', betsToUpdate)
-            .then(({ error }) => { if(error) console.error(error); });
-    }
-  };
-
-  // List Management (Saved to Settings)
-  const handleUpdateList = (listName: string, newList: string[]) => {
-      if (listName === 'methodologies') setMethodologiesList(newList);
-      if (listName === 'tags') setTagsList(newList);
-      if (listName === 'leagues') setLeaguesList(newList);
-      
-      updateSettings({ [listName]: newList });
-  };
-
-  const updateMonthlyBankroll = (val: string) => {
-    const num = parseFloat(val) || 0;
-    const newMap = { ...monthlyBankrolls, [monthKey]: num };
-    setMonthlyBankrolls(newMap);
-    updateSettings({ monthly_bankrolls: newMap });
-  };
-
-  const updateMonthlyStake = (val: string) => {
-    const num = parseFloat(val) || 0;
-    const newMap = { ...monthlyStakes, [monthKey]: num };
-    setMonthlyStakes(newMap);
-    updateSettings({ monthly_stakes: newMap });
-  };
-
-  const handleCurrencyChange = (val: string) => {
-      setCurrency(val);
-      updateSettings({ currency: val });
-  };
-
-  const handleDataImport = (data: any) => {
-      // Importação local desabilitada ou convertida para lógica de merge com Supabase
-      // Por agora, mantemos apenas o refresh local
-      alert("A importação de backup JSON sobrescreve dados locais. Com a integração Supabase, use a importação CSV para adicionar apostas.");
-  };
-
   const handleViewChange = (newView: typeof view) => {
     setView(newView);
     setIsMobileMenuOpen(false);
@@ -408,18 +253,6 @@ const App: React.FC = () => {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
   const years = Array.from({ length: 2050 - 2025 + 1 }, (_, i) => 2025 + i);
-
-  if (loading) {
-      return (
-          <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-              <div className="w-12 h-12 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin"></div>
-          </div>
-      );
-  }
-
-  if (!session) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-950 text-slate-100 font-sans relative">
@@ -495,10 +328,16 @@ const App: React.FC = () => {
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-800">
-           <div className="px-4 py-2 mb-2 text-xs text-slate-500 truncate">
-             {session.user.email}
+           <div className="flex items-center gap-3 px-2 mb-4">
+             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-yellow-400 font-bold">
+               {user.name.charAt(0).toUpperCase()}
+             </div>
+             <div className="overflow-hidden">
+               <p className="text-sm font-bold text-white truncate">{user.name}</p>
+               <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+             </div>
            </div>
-           <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all text-lg font-medium">
+           <button onClick={onLogout} className="w-full flex items-center gap-4 p-4 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all text-lg font-medium">
              <i className="fas fa-sign-out-alt w-6"></i> Sair
            </button>
         </div>
@@ -573,7 +412,7 @@ const App: React.FC = () => {
         {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} currency={currency} />}
         {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} />}
         {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} availableTags={tagsList} />}
-        {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects }} onDataImport={handleDataImport} />}
+        {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects, currency }} onDataImport={handleDataImport} />}
         {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} />}
 
         {showCSVModal && <CSVImporter onImport={async (newBets) => { 
@@ -588,31 +427,34 @@ const App: React.FC = () => {
                 return { ...b, projectId: pid, dezenaIndex: dezIndex };
             });
             
-            // Bulk insert
-            const { error } = await supabase.from('bets').insert(betsWithProjects.map(b => ({
-                 user_id: session.user.id,
-                 date: b.date,
-                 event: b.event,
-                 market: b.market,
-                 type: b.type,
-                 stake: b.stake,
-                 profit: b.profit,
-                 profit_percentage: b.profitPercentage,
-                 status: b.status,
-                 tags: [], // CSV não traz tags, default vazio
-                 project_id: b.projectId,
-                 dezena_index: b.dezenaIndex
-            })));
-
-            if(!error) {
-                setBets(prev => [...betsWithProjects, ...prev]); 
-                setShowCSVModal(false); 
-                setView('bets'); 
-            }
+            // Local update only
+            setBets(prev => [...betsWithProjects, ...prev]); 
+            setShowCSVModal(false); 
+            setView('bets'); 
         }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
       </main>
     </div>
   );
+};
+
+// Main App Container to handle Auth state
+const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  // Use key to force remount when user changes, ensuring hooks re-run with new storage keys
+  return <BetProfitApp key={currentUser.id} user={currentUser} onLogout={handleLogout} />;
 };
 
 export default App;
