@@ -14,9 +14,10 @@ import CSVImporter from './components/CSVImporter';
 import Login, { User } from './components/Login';
 import DatabaseManager from './components/DatabaseManager';
 import Logo from './components/Logo';
+import ProfileSettings from './components/ProfileSettings';
 
 // Inner component to handle data logic when user is authenticated
-const BetProfitApp: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
+const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (u: User) => void }> = ({ user, onLogout, onUpdateUser }) => {
   // --- HELPER FOR USER-SCOPED STORAGE KEYS ---
   // If user ID is 'default' (legacy migration), use root keys to preserve data.
   // Otherwise, suffix keys with user ID.
@@ -61,6 +62,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void }> = ({ user, on
 
   // --- UI STATE ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -328,14 +330,23 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void }> = ({ user, on
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-800">
-           <div className="flex items-center gap-3 px-2 mb-4">
-             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-yellow-400 font-bold">
-               {user.name.charAt(0).toUpperCase()}
+           <div 
+            className="flex items-center gap-3 px-2 mb-4 cursor-pointer hover:bg-slate-800/50 p-2 rounded-xl transition-all group"
+            onClick={() => setShowProfileSettings(true)}
+            title="Editar Perfil"
+           >
+             <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-yellow-400 font-bold border-2 border-slate-700 group-hover:border-yellow-400 transition-colors overflow-hidden">
+               {user.avatar ? (
+                 <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+               ) : (
+                 (user.name || '?').charAt(0).toUpperCase()
+               )}
              </div>
-             <div className="overflow-hidden">
-               <p className="text-sm font-bold text-white truncate">{user.name}</p>
+             <div className="overflow-hidden flex-1">
+               <p className="text-sm font-bold text-white truncate group-hover:text-yellow-400 transition-colors">{user.name || 'Utilizador'}</p>
                <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
              </div>
+             <i className="fas fa-cog text-slate-600 group-hover:text-white transition-colors"></i>
            </div>
            <button onClick={onLogout} className="w-full flex items-center gap-4 p-4 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all text-lg font-medium">
              <i className="fas fa-sign-out-alt w-6"></i> Sair
@@ -432,6 +443,14 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void }> = ({ user, on
             setShowCSVModal(false); 
             setView('bets'); 
         }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
+
+        {showProfileSettings && (
+          <ProfileSettings 
+            user={user} 
+            onUpdate={onUpdateUser} 
+            onClose={() => setShowProfileSettings(false)} 
+          />
+        )}
       </main>
     </div>
   );
@@ -449,12 +468,35 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
+  const handleUpdateUser = (updatedUser: User) => {
+     // Persist to local storage
+     const storedUsers = localStorage.getItem('betprofit_users');
+     if (storedUsers) {
+        try {
+           const users = JSON.parse(storedUsers) as User[];
+           const newUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
+           localStorage.setItem('betprofit_users', JSON.stringify(newUsers));
+        } catch(e) {
+           console.error("Failed to update user in storage", e);
+        }
+     }
+     setCurrentUser(updatedUser);
+  };
+
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
 
-  // Use key to force remount when user changes, ensuring hooks re-run with new storage keys
-  return <BetProfitApp key={currentUser.id} user={currentUser} onLogout={handleLogout} />;
+  // Use key to force remount when user changes ID, ensuring hooks re-run with new storage keys
+  // Also pass handleUpdateUser
+  return (
+    <BetProfitApp 
+      key={currentUser.id} 
+      user={currentUser} 
+      onLogout={handleLogout} 
+      onUpdateUser={handleUpdateUser}
+    />
+  );
 };
 
 export default App;

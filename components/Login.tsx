@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Logo from './Logo';
 
 export interface User {
@@ -6,6 +6,7 @@ export interface User {
   name: string;
   email?: string;
   password: string;
+  avatar?: string; // Base64 image string
 }
 
 interface LoginProps {
@@ -21,6 +22,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [avatar, setAvatar] = useState(''); // New state for registration avatar
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Login input
   const [loginPassword, setLoginPassword] = useState('');
@@ -34,7 +37,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     if (storedUsersStr) {
       try {
-        loadedUsers = JSON.parse(storedUsersStr);
+        const parsed = JSON.parse(storedUsersStr);
+        // Ensure it is an array and filter out corrupted entries without names
+        if (Array.isArray(parsed)) {
+            loadedUsers = parsed.filter((u: any) => u && typeof u === 'object' && u.name && u.id);
+        }
       } catch (e) {
         console.error("Erro ao carregar utilizadores, dados corrompidos:", e);
         // Opcional: limpar dados corrompidos para permitir que a app inicie
@@ -46,11 +53,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (legacyUserStr) {
         try {
           const legacyUser = JSON.parse(legacyUserStr);
-          // Assign 'default' ID to preserve access to existing root-level data in App.tsx
-          const migratedUser: User = { ...legacyUser, id: 'default' };
-          loadedUsers = [migratedUser];
-          localStorage.setItem('betprofit_users', JSON.stringify(loadedUsers));
-          // Optional: localStorage.removeItem('betprofit_user'); 
+          if (legacyUser && legacyUser.name) {
+             // Assign 'default' ID to preserve access to existing root-level data in App.tsx
+             const migratedUser: User = { ...legacyUser, id: 'default' };
+             loadedUsers = [migratedUser];
+             localStorage.setItem('betprofit_users', JSON.stringify(loadedUsers));
+          }
         } catch (e) {
           console.error("Erro ao migrar utilizador legado:", e);
         }
@@ -72,6 +80,41 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setView('REGISTER');
     }
   }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 200;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          setAvatar(canvas.toDataURL('image/jpeg', 0.8));
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleQuickLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +154,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       id: newId,
       name,
       email,
-      password
+      password,
+      avatar: avatar // Save avatar
     };
 
     const updatedUsers = [...users, newUser];
@@ -143,8 +187,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const renderQuickLogin = () => (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h2 className="text-2xl font-bold text-white mb-2 text-center">Olá, {activeUser?.name}</h2>
-      <p className="text-slate-400 text-center mb-8 text-sm">Bem-vindo de volta!</p>
+      <div className="flex flex-col items-center mb-6">
+        <div className="w-24 h-24 rounded-full bg-slate-800 border-4 border-slate-700 shadow-xl overflow-hidden mb-4 flex items-center justify-center">
+            {activeUser?.avatar ? (
+                <img src={activeUser.avatar} alt={activeUser.name} className="w-full h-full object-cover" />
+            ) : (
+                <span className="text-4xl font-bold text-slate-600">{(activeUser?.name || '?').charAt(0).toUpperCase()}</span>
+            )}
+        </div>
+        <h2 className="text-2xl font-bold text-white text-center">Olá, {activeUser?.name || 'Utilizador'}</h2>
+        <p className="text-slate-400 text-center text-sm">Bem-vindo de volta!</p>
+      </div>
       
       <form onSubmit={handleQuickLogin} className="space-y-6">
         <div className="space-y-2">
@@ -199,11 +252,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             onClick={() => selectUserFromList(user)}
             className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-yellow-400/50 p-4 rounded-xl flex items-center gap-4 transition-all group text-left"
           >
-            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-yellow-400 font-bold text-lg group-hover:bg-yellow-400 group-hover:text-slate-900 transition-colors">
-              {user.name.charAt(0).toUpperCase()}
+            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-yellow-400 font-bold text-lg group-hover:bg-yellow-400 group-hover:text-slate-900 transition-colors overflow-hidden">
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                (user.name || '?').charAt(0).toUpperCase()
+              )}
             </div>
             <div>
-              <p className="text-white font-bold group-hover:text-yellow-400 transition-colors">{user.name}</p>
+              <p className="text-white font-bold group-hover:text-yellow-400 transition-colors">{user.name || 'Sem nome'}</p>
               <p className="text-xs text-slate-500">{user.email}</p>
             </div>
             <i className="fas fa-chevron-right ml-auto text-slate-600 group-hover:text-yellow-400"></i>
@@ -213,7 +270,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       <button 
         type="button"
-        onClick={() => { setName(''); setEmail(''); setPassword(''); setError(''); setView('REGISTER'); }}
+        onClick={() => { setName(''); setEmail(''); setPassword(''); setAvatar(''); setError(''); setView('REGISTER'); }}
         className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
       >
         <i className="fas fa-plus-circle"></i> Criar Nova Conta
@@ -236,6 +293,32 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <h2 className="text-2xl font-bold text-white mb-6 text-center">Criar Perfil</h2>
       
       <form onSubmit={handleRegister} className="space-y-6">
+        
+        {/* Avatar Upload */}
+        <div className="flex flex-col items-center gap-2">
+            <div 
+                className="w-24 h-24 rounded-full bg-slate-800 border-2 border-dashed border-slate-600 hover:border-yellow-400 hover:bg-slate-800/80 cursor-pointer flex items-center justify-center overflow-hidden transition-all group relative"
+                onClick={() => fileInputRef.current?.click()}
+            >
+                {avatar ? (
+                    <img src={avatar} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                    <i className="fas fa-camera text-slate-500 text-2xl group-hover:text-yellow-400 transition-colors"></i>
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[10px] text-white font-bold uppercase">Alterar</span>
+                </div>
+            </div>
+            <p className="text-[10px] text-slate-500">Toque para adicionar foto</p>
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+            />
+        </div>
+
         <div className="space-y-2">
           <label className="text-xs uppercase font-bold text-slate-500 tracking-widest ml-1">Username</label>
           <div className="relative">
@@ -299,6 +382,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             // Return to list or quick view based on state
             setView(users.length > 0 ? 'LIST' : 'REGISTER'); 
             setError('');
+            setAvatar('');
           }}
           className="w-full mt-4 text-slate-500 hover:text-white text-sm py-2 transition-colors flex items-center justify-center gap-2"
         >
