@@ -1,2 +1,1 @@
-// Supabase integration removed.
-export const supabase = null;
+export {}; // Removed

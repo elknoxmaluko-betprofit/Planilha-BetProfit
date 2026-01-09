@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Bet } from '../types';
-import { analyzeBets } from '../services/geminiService';
+import { analyzeBets } from '../geminiService';
 
 interface AIAssistantProps {
   bets: Bet[];
