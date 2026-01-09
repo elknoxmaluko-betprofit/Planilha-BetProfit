@@ -33,17 +33,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     let loadedUsers: User[] = [];
 
     if (storedUsersStr) {
-      loadedUsers = JSON.parse(storedUsersStr);
+      try {
+        loadedUsers = JSON.parse(storedUsersStr);
+      } catch (e) {
+        console.error("Erro ao carregar utilizadores, dados corrompidos:", e);
+        // Opcional: limpar dados corrompidos para permitir que a app inicie
+        // localStorage.removeItem('betprofit_users');
+      }
     } else {
       // Check legacy single user
       const legacyUserStr = localStorage.getItem('betprofit_user');
       if (legacyUserStr) {
-        const legacyUser = JSON.parse(legacyUserStr);
-        // Assign 'default' ID to preserve access to existing root-level data in App.tsx
-        const migratedUser: User = { ...legacyUser, id: 'default' };
-        loadedUsers = [migratedUser];
-        localStorage.setItem('betprofit_users', JSON.stringify(loadedUsers));
-        // Optional: localStorage.removeItem('betprofit_user'); 
+        try {
+          const legacyUser = JSON.parse(legacyUserStr);
+          // Assign 'default' ID to preserve access to existing root-level data in App.tsx
+          const migratedUser: User = { ...legacyUser, id: 'default' };
+          loadedUsers = [migratedUser];
+          localStorage.setItem('betprofit_users', JSON.stringify(loadedUsers));
+          // Optional: localStorage.removeItem('betprofit_user'); 
+        } catch (e) {
+          console.error("Erro ao migrar utilizador legado:", e);
+        }
       }
     }
 
@@ -89,8 +99,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
        return;
     }
 
+    // Ensure crypto.randomUUID is available, fallback if not (e.g. non-secure context)
+    let newId;
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      newId = crypto.randomUUID();
+    } else {
+      newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    }
+
     const newUser: User = {
-      id: crypto.randomUUID(),
+      id: newId,
       name,
       email,
       password
