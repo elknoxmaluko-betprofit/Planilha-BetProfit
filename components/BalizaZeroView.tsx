@@ -27,9 +27,10 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
     return [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [bets]);
 
-  // Agrupar em Dezenas
-  const dezenas = useMemo(() => {
+  // Agrupar em Dezenas (Mapa por Índice)
+  const dezenasMap = useMemo(() => {
     const map: Record<number, Bet[]> = {};
+    // Inicializar até à dezena ativa
     for (let i = 0; i <= activeProjectDezena; i++) {
         map[i] = [];
     }
@@ -38,7 +39,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
         if (!map[idx]) map[idx] = [];
         map[idx].push(bet);
     });
-    return Object.values(map);
+    return map;
   }, [sortedBets, activeProjectDezena]);
 
   // Projeção Visual (Plan Planeado)
@@ -70,7 +71,6 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
   }, [project.startBankroll, bankDivision, activeProjectDezena, project.stakeGoal]);
 
   // Função auxiliar para calcular o lucro AJUSTADO ao projeto
-  // (Pega no Yield da aposta e aplica à stake teórica do projeto)
   const getAdjustedProfit = (bet: Bet, theoreticalStake: number) => {
       const yieldRatio = bet.stake > 0 ? (bet.profit / bet.stake) : 0;
       return yieldRatio * theoreticalStake;
@@ -79,17 +79,16 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
   // Calcula o totalProfit acumulado usando a lógica de lucro ajustado
   const totalAdjustedProfit = useMemo(() => {
      let total = 0;
-     dezenas.forEach((dezenaBets, index) => {
-         const plan = projectionData[index];
-         if (!plan) return;
-         
+     // Iterar sobre as etapas projetadas para somar o lucro
+     projectionData.forEach((plan, index) => {
+         const dezenaBets = dezenasMap[index] || [];
          const theoreticalStake = plan.stake;
          dezenaBets.forEach(b => {
              total += getAdjustedProfit(b, theoreticalStake);
          });
      });
      return total;
-  }, [dezenas, projectionData]);
+  }, [dezenasMap, projectionData]);
 
 
   const marketMatrix = useMemo(() => {
@@ -104,12 +103,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
 
       const calculateStats = (group: Bet[]) => {
         const count = group.length;
-        // Aqui também deve ser ajustado, mas para matriz de mercados talvez o valor absoluto interesse? 
-        // Não, para o projeto ser coerente, tudo deve ser relativo à stake do projeto.
-        // Como o marketMatrix não tem contexto de dezena fácil aqui, usamos uma aproximação ou iteramos.
-        // Vamos iterar para ser preciso.
         const profit = group.reduce((acc, b) => {
-            // Precisamos encontrar a dezena desta aposta para saber a stake teórica
             const dIdx = b.dezenaIndex || 0;
             const tStake = projectionData[dIdx]?.stake || (project.startBankroll/bankDivision);
             return acc + getAdjustedProfit(b, tStake);
@@ -137,6 +131,13 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
       onAdvanceDezena(project.id);
     }
   };
+
+  // Determinar o range de abas (até à maior dezena com apostas ou a ativa)
+  const tabsRange = useMemo(() => {
+      const maxWithBets = Math.max(...Object.keys(dezenasMap).map(Number));
+      const limit = Math.max(activeProjectDezena, maxWithBets);
+      return Array.from({ length: limit + 1 }, (_, i) => i);
+  }, [activeProjectDezena, dezenasMap]);
 
   return (
     <div className="bg-black min-h-screen p-4 md:p-8 font-sans text-slate-200">
@@ -283,7 +284,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                    {projectionData.map((plan, i) => {
                      if (i > activeProjectDezena) return null;
 
-                     const dezenaBets = dezenas[i] || [];
+                     const dezenaBets = dezenasMap[i] || []; // Usar Map
                      const isCurrent = i === activeProjectDezena;
                      const isPast = i < activeProjectDezena;
                      
@@ -450,7 +451,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
 
           <div className="mb-4 overflow-x-auto pb-2">
             <div className="flex gap-2 min-w-max">
-                {dezenas.map((chunk, index) => {
+                {tabsRange.map((index) => {
                     const isActive = selectedDezenaIndex === index;
                     return (
                         <button
@@ -491,12 +492,22 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                   </thead>
                   <tbody className="bg-black text-slate-300">
                     {(() => {
-                        const currentDezenaBets = dezenas[selectedDezenaIndex] || [];
+                        const currentDezenaBets = dezenasMap[selectedDezenaIndex] || [];
                         const plan = projectionData[selectedDezenaIndex];
                         const dezenaBaseline = plan?.bank || project.startBankroll;
                         const theoreticalStake = plan?.stake || (project.startBankroll/bankDivision);
                         
                         let runningAccumulated = 0;
+
+                        if (currentDezenaBets.length === 0) {
+                            return (
+                                <tr>
+                                    <td colSpan={8} className="p-8 text-center text-slate-500 italic">
+                                        Nenhuma aposta registada nesta dezena.
+                                    </td>
+                                </tr>
+                            );
+                        }
 
                         const rows = currentDezenaBets.map((bet) => {
                             const adjustedProfit = getAdjustedProfit(bet, theoreticalStake);
