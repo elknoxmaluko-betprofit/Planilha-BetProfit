@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Project, Bet, BetStatus } from '../types';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
@@ -48,61 +47,111 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
       const settledBets = projectBets.filter(b => b.status !== BetStatus.PENDING);
       
-      const totalProfit = settledBets.reduce((acc, b) => acc + b.profit, 0);
-      const currentBankroll = proj.startBankroll + totalProfit;
-      
+      let totalProfit = 0;
+      let currentBankroll = 0;
       let progress = 0;
-      let currentDezenaStake = 0; // Nova variável para stake fixa por dezena
-      
-      if (proj.projectType === 'BALIZA_ZERO' && proj.stakeGoal && proj.bankrollDivision) {
-        // Cálculo da Stake Teórica para a Dezena Atual
-        let tempBank = proj.startBankroll;
-        const div = proj.bankrollDivision;
-        const activeIdx = proj.activeDezenaIndex || 0;
-        
-        for (let i = 0; i <= activeIdx; i++) {
-           currentDezenaStake = tempBank / div;
-           const goal = currentDezenaStake * 2.5;
-           tempBank += goal;
-           
-           // Limite pela Stake Goal, se definido (igual ao BalizaZeroView)
-           if (proj.stakeGoal && currentDezenaStake >= proj.stakeGoal && i < activeIdx) {
-              currentDezenaStake = proj.stakeGoal; // Cap stake
-              // Recalcula crescimento com stake limitada se necessário, mas simplificando:
-              // Se atingiu a meta, mantemos a meta.
-           }
-        }
-        // Se ultrapassar meta, fixa na meta
-        if (proj.stakeGoal && currentDezenaStake > proj.stakeGoal) {
-            currentDezenaStake = proj.stakeGoal;
-        }
+      let currentDezenaStake = 0;
 
-        // Progresso visual (baseado em stake atual vs stake goal)
-        const startStake = proj.startBankroll / proj.bankrollDivision;
-        progress = proj.stakeGoal > startStake 
-          ? ((currentDezenaStake - startStake) / (proj.stakeGoal - startStake)) * 100
-          : 0;
+      // Lógica específica para Baliza Zero (Cálculo Proporcional à Stake do Projeto)
+      if (proj.projectType === 'BALIZA_ZERO' && proj.bankrollDivision) {
+          // 1. Calcular o lucro ajustado baseado no Yield real vs Stake Teórica
+          // Simulamos o crescimento da banca por dezena para saber a stake de cada etapa
+          let tempBank = proj.startBankroll;
+          let tempTotalProfit = 0;
+          
+          // Agrupar apostas por dezena
+          const betsByDezena: Record<number, Bet[]> = {};
+          projectBets.forEach(b => {
+              const d = b.dezenaIndex || 0;
+              if (!betsByDezena[d]) betsByDezena[d] = [];
+              betsByDezena[d].push(b);
+          });
 
-      } else if (proj.goal) {
-        progress = ((currentBankroll - proj.startBankroll) / (proj.goal - proj.startBankroll)) * 100;
+          // Encontrar a última dezena ativa ou máxima registada
+          const maxDezena = Math.max(proj.activeDezenaIndex || 0, ...Object.keys(betsByDezena).map(Number));
+
+          for (let i = 0; i <= maxDezena; i++) {
+              // Stake teórica desta dezena (com base na banca acumulada até aqui)
+              const dezenaStake = tempBank / proj.bankrollDivision;
+              
+              // Se for a dezena ativa, guardamos para mostrar no card
+              if (i === (proj.activeDezenaIndex || 0)) {
+                  currentDezenaStake = dezenaStake;
+                  // Cap na stake goal se existir
+                  if (proj.stakeGoal && currentDezenaStake > proj.stakeGoal) {
+                      currentDezenaStake = proj.stakeGoal;
+                  }
+              }
+
+              const dbets = betsByDezena[i] || [];
+              let dezenaProfit = 0;
+
+              // Calcular lucro ajustado desta dezena
+              dbets.forEach(b => {
+                  const yieldRatio = b.stake > 0 ? (b.profit / b.stake) : 0;
+                  // O lucro no projeto é: Yield Real * Stake Teórica do Projeto
+                  // Nota: Se a stakeGoal for atingida, a stake teórica é capada
+                  let effectiveStake = dezenaStake;
+                  if (proj.stakeGoal && effectiveStake > proj.stakeGoal) effectiveStake = proj.stakeGoal;
+                  
+                  dezenaProfit += yieldRatio * effectiveStake;
+              });
+
+              tempTotalProfit += dezenaProfit;
+              tempBank += dezenaProfit;
+          }
+
+          totalProfit = tempTotalProfit;
+          currentBankroll = tempBank;
+
+          // Progresso visual Baliza Zero
+          const startStake = proj.startBankroll / proj.bankrollDivision;
+          if (proj.stakeGoal && proj.stakeGoal > startStake) {
+               progress = ((currentDezenaStake - startStake) / (proj.stakeGoal - startStake)) * 100;
+          }
+
+      } else {
+          // Lógica Standard (Soma direta)
+          totalProfit = settledBets.reduce((acc, b) => acc + b.profit, 0);
+          currentBankroll = proj.startBankroll + totalProfit;
+          
+          if (proj.goal) {
+            progress = ((currentBankroll - proj.startBankroll) / (proj.goal - proj.startBankroll)) * 100;
+          }
       }
 
       const roi = proj.startBankroll > 0 ? (totalProfit / proj.startBankroll) * 100 : 0;
       
+      // Gerar dados do gráfico (usando valores ajustados para Baliza Zero se necessário, 
+      // mas para simplificar o gráfico aqui usa a progressão calculada final)
+      // Nota: Para Baliza Zero, idealmente o gráfico seguiria a simulação acima, mas 
+      // uma aproximação linear baseada no tempo das apostas é aceitável para o card.
       let runningBank = proj.startBankroll;
       const chartData = [
         { name: 'Start', value: proj.startBankroll },
         ...projectBets
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
           .map((b, i) => {
-            runningBank += b.profit;
-            return { name: i, value: runningBank };
+             if (proj.projectType === 'BALIZA_ZERO' && proj.bankrollDivision) {
+                 // Cálculo aproximado para gráfico: Yield * Stake Atual Estimada
+                 // (Simplificação: usa a stake atual da dezena ativa para tudo no gráfico para não reprocessar loop pesado)
+                 const yieldRatio = b.stake > 0 ? (b.profit / b.stake) : 0;
+                 // Tenta pegar a stake correta da dezena dessa aposta se possível, senão usa média
+                 // Para performance do card, vamos usar o lucro ajustado aproximado se disponível, ou raw
+                 // Melhor: Usar o totalProfit acumulado calculado acima seria complexo de mapear tempo x tempo.
+                 // Fallback: Gráfico mostra tendência.
+                 const estimatedStake = (proj.startBankroll + (totalProfit * (i/projectBets.length))) / proj.bankrollDivision; 
+                 runningBank += (yieldRatio * estimatedStake);
+             } else {
+                 runningBank += b.profit;
+             }
+             return { name: i, value: runningBank };
           })
       ];
 
       return {
         ...proj,
-        projectBets, // Passa as apostas filtradas para uso posterior (ex: BalizaZeroView)
+        projectBets, 
         totalProfit,
         currentBankroll,
         betCount: projectBets.length,
@@ -110,7 +159,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         progress: Math.max(0, Math.min(100, progress)),
         chartData,
         roi,
-        currentDezenaStake // Disponibiliza no objeto
+        currentDezenaStake
       };
     });
   }, [projects, bets]);
@@ -161,7 +210,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
   if (selectedProject) {
     const activeStats = projectStats.find(p => p.id === selectedProject.id);
-    // Usa as apostas filtradas no projectStats para garantir que a tag foi considerada
     const betsForView = activeStats ? activeStats.projectBets : [];
 
     if (selectedProject.projectType === 'BALIZA_ZERO') {
@@ -353,7 +401,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div>
-                <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Banca Atual</p>
+                <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Banca Atual (Proj.)</p>
                 <p className={`text-2xl font-mono font-black ${proj.currentBankroll >= proj.startBankroll ? 'text-emerald-400' : 'text-red-400'}`}>
                   {proj.currentBankroll.toFixed(2)}{currency}
                 </p>

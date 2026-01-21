@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { Project, Bet, BetStatus } from '../types';
 
@@ -13,17 +12,14 @@ interface BalizaZeroViewProps {
 const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, currency, onAdvanceDezena }) => {
   const [activeTab, setActiveTab] = useState<'PAINEL' | 'DETALHADO' | 'MERCADOS'>('PAINEL');
   
-  // Sincroniza a dezena selecionada com a dezena ativa do projeto ao abrir ou mudar de etapa
+  // Sincroniza a dezena selecionada com a dezena ativa do projeto
   const [selectedDezenaIndex, setSelectedDezenaIndex] = useState(project.activeDezenaIndex ?? 0);
   
   useEffect(() => {
     setSelectedDezenaIndex(project.activeDezenaIndex ?? 0);
   }, [project.activeDezenaIndex]);
 
-  // Utiliza a divisão definida no projeto, ou 10 como fallback
   const bankDivision = project.bankrollDivision || 10;
-  
-  // Índice da dezena ativa no projeto
   const activeProjectDezena = project.activeDezenaIndex ?? 0;
 
   // Ordenar apostas por data
@@ -31,25 +27,21 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
     return [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [bets]);
 
-  // Agrupar em Dezenas MANUAIS baseadas no dezenaIndex
+  // Agrupar em Dezenas
   const dezenas = useMemo(() => {
     const map: Record<number, Bet[]> = {};
-    
-    // Inicializa até à dezena ativa atual para garantir que existem
     for (let i = 0; i <= activeProjectDezena; i++) {
         map[i] = [];
     }
-
     sortedBets.forEach(bet => {
         const idx = bet.dezenaIndex ?? 0;
         if (!map[idx]) map[idx] = [];
         map[idx].push(bet);
     });
-
     return Object.values(map);
   }, [sortedBets, activeProjectDezena]);
 
-  // Projeção Visual (Tabela) - Escada de Lucro Teórica (Plano de Metas)
+  // Projeção Visual (Plan Planeado)
   const projectionData = useMemo(() => {
     const rows = [];
     let runningBank = project.startBankroll;
@@ -57,7 +49,9 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
     const maxSafetyRows = 100;
 
     for (let i = 0; i < maxSafetyRows; i++) {
-        const stake = runningBank / bankDivision;
+        let stake = runningBank / bankDivision;
+        if (stakeGoal > 0 && stake >= stakeGoal) stake = stakeGoal;
+        
         const goal = stake * 2.5;
 
         rows.push({
@@ -67,28 +61,36 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
             goal: goal
         });
 
-        // Condição de paragem baseada na stake alvo
-        if (stakeGoal > 0 && stake >= stakeGoal && i >= activeProjectDezena) {
-            break;
-        }
-
-        // Fallback se não houver objetivo
-        if (!stakeGoal && i >= Math.max(19, activeProjectDezena + 5)) {
-            break;
-        }
+        if (stakeGoal > 0 && stake >= stakeGoal && i >= activeProjectDezena) break;
+        if (!stakeGoal && i >= Math.max(19, activeProjectDezena + 5)) break;
 
         runningBank += goal;
     }
     return rows;
   }, [project.startBankroll, bankDivision, activeProjectDezena, project.stakeGoal]);
 
-  const totalProfit = sortedBets.reduce((acc, b) => acc + b.profit, 0);
-  
-  // A stake recomendada agora segue estritamente a programação teórica para a dezena ativa
-  const recommendedStake = useMemo(() => {
-    const currentStep = projectionData[activeProjectDezena];
-    return currentStep ? currentStep.stake : (project.startBankroll / bankDivision);
-  }, [projectionData, activeProjectDezena, project.startBankroll, bankDivision]);
+  // Função auxiliar para calcular o lucro AJUSTADO ao projeto
+  // (Pega no Yield da aposta e aplica à stake teórica do projeto)
+  const getAdjustedProfit = (bet: Bet, theoreticalStake: number) => {
+      const yieldRatio = bet.stake > 0 ? (bet.profit / bet.stake) : 0;
+      return yieldRatio * theoreticalStake;
+  };
+
+  // Calcula o totalProfit acumulado usando a lógica de lucro ajustado
+  const totalAdjustedProfit = useMemo(() => {
+     let total = 0;
+     dezenas.forEach((dezenaBets, index) => {
+         const plan = projectionData[index];
+         if (!plan) return;
+         
+         const theoreticalStake = plan.stake;
+         dezenaBets.forEach(b => {
+             total += getAdjustedProfit(b, theoreticalStake);
+         });
+     });
+     return total;
+  }, [dezenas, projectionData]);
+
 
   const marketMatrix = useMemo(() => {
     const markets = [
@@ -102,7 +104,17 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
 
       const calculateStats = (group: Bet[]) => {
         const count = group.length;
-        const profit = group.reduce((acc, b) => acc + b.profit, 0);
+        // Aqui também deve ser ajustado, mas para matriz de mercados talvez o valor absoluto interesse? 
+        // Não, para o projeto ser coerente, tudo deve ser relativo à stake do projeto.
+        // Como o marketMatrix não tem contexto de dezena fácil aqui, usamos uma aproximação ou iteramos.
+        // Vamos iterar para ser preciso.
+        const profit = group.reduce((acc, b) => {
+            // Precisamos encontrar a dezena desta aposta para saber a stake teórica
+            const dIdx = b.dezenaIndex || 0;
+            const tStake = projectionData[dIdx]?.stake || (project.startBankroll/bankDivision);
+            return acc + getAdjustedProfit(b, tStake);
+        }, 0);
+        
         const goalsConceded = group.filter(b => b.status === BetStatus.LOST).length;
         return { count, profit, goalsConceded };
       };
@@ -113,7 +125,12 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
         ft: calculateStats(ftBets)
       };
     });
-  }, [sortedBets]);
+  }, [sortedBets, projectionData, project.startBankroll, bankDivision]);
+
+  const recommendedStake = useMemo(() => {
+    const currentStep = projectionData[activeProjectDezena];
+    return currentStep ? currentStep.stake : (project.startBankroll / bankDivision);
+  }, [projectionData, activeProjectDezena, project.startBankroll, bankDivision]);
 
   const handleValidateDezena = () => {
     if (onAdvanceDezena) {
@@ -129,70 +146,29 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
           <div className="w-32 h-32 md:w-40 md:h-40 relative group">
              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-500">
                 <defs>
-                  {/* Gradiente Dourado Premium para o Z */}
                   <linearGradient id="premiumGold" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" /> {/* Amber 500 */}
-                    <stop offset="50%" stopColor="#d97706" /> {/* Amber 600 */}
-                    <stop offset="100%" stopColor="#b45309" /> {/* Amber 700 */}
+                    <stop offset="0%" stopColor="#f59e0b" />
+                    <stop offset="50%" stopColor="#d97706" />
+                    <stop offset="100%" stopColor="#b45309" />
                   </linearGradient>
-                  
-                  {/* Gradiente Metal Escuro para o B e Frame */}
                   <linearGradient id="darkMetal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#334155" /> {/* Slate 700 */}
-                    <stop offset="100%" stopColor="#0f172a" /> {/* Slate 900 */}
+                    <stop offset="0%" stopColor="#334155" />
+                    <stop offset="100%" stopColor="#0f172a" />
                   </linearGradient>
-
-                   {/* Padrão de Rede Hexagonal */}
                   <pattern id="hexNet" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
                     <path d="M5 0 L10 2.5 L10 7.5 L5 10 L0 7.5 L0 2.5 Z" fill="none" stroke="#334155" strokeWidth="0.5" opacity="0.4"/>
                   </pattern>
-
-                  {/* Sombra 3D */}
                   <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
                     <feOffset dx="2" dy="2" result="offsetblur"/>
-                    <feComponentTransfer>
-                      <feFuncA type="linear" slope="0.5"/>
-                    </feComponentTransfer>
-                    <feMerge> 
-                      <feMergeNode/>
-                      <feMergeNode in="SourceGraphic"/> 
-                    </feMerge>
+                    <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+                    <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
                   </filter>
                 </defs>
-                
-                {/* Background da Rede (Dentro da Baliza) */}
                 <rect x="10" y="27.5" width="80" height="45" fill="url(#hexNet)" />
-
-                {/* Estrutura da Baliza (Frame) - Retangular */}
-                <path 
-                  d="M5 77.5 V22.5 H95 V77.5" 
-                  stroke="url(#darkMetal)" 
-                  strokeWidth="6" 
-                  strokeLinecap="round" 
-                  fill="none" 
-                  filter="url(#dropShadow)"
-                />
-                
-                {/* Letra B - Geometria Angular e Moderna */}
-                <path 
-                  d="M20 27.5 H40 L48 34 V44 L42 50 L48 56 V66 L40 72.5 H20 V27.5 Z M28 35.5 V43.5 H37 L40 41 V38 L37 35.5 H28 Z M28 56.5 V64.5 H37 L40 62 V59 L37 56.5 H28 Z" 
-                  fill="url(#darkMetal)" 
-                  stroke="#1e293b"
-                  strokeWidth="0.5"
-                  fillRule="evenodd"
-                  filter="url(#dropShadow)"
-                />
-
-                {/* Letra Z - Centrada no novo formato */}
-                <path 
-                  d="M55 27.5 H85 L85 35.5 L65 64.5 H85 V72.5 H50 V64.5 L70 35.5 H55 V27.5 Z" 
-                  fill="url(#premiumGold)" 
-                  stroke="#fff"
-                  strokeWidth="0.5"
-                  filter="url(#dropShadow)"
-                />
-
+                <path d="M5 77.5 V22.5 H95 V77.5" stroke="url(#darkMetal)" strokeWidth="6" strokeLinecap="round" fill="none" filter="url(#dropShadow)"/>
+                <path d="M20 27.5 H40 L48 34 V44 L42 50 L48 56 V66 L40 72.5 H20 V27.5 Z M28 35.5 V43.5 H37 L40 41 V38 L37 35.5 H28 Z M28 56.5 V64.5 H37 L40 62 V59 L37 56.5 H28 Z" fill="url(#darkMetal)" stroke="#1e293b" strokeWidth="0.5" fillRule="evenodd" filter="url(#dropShadow)"/>
+                <path d="M55 27.5 H85 L85 35.5 L65 64.5 H85 V72.5 H50 V64.5 L70 35.5 H55 V27.5 Z" fill="url(#premiumGold)" stroke="#fff" strokeWidth="0.5" filter="url(#dropShadow)"/>
              </svg>
           </div>
           <div>
@@ -296,38 +272,35 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                      <th className="p-2 border border-slate-500">Status</th>
                      <th className="p-2 border border-slate-500">Banca Inicial</th>
                      <th className="p-2 border border-slate-500">Stake</th>
-                     <th className="p-2 border border-slate-500">P/L Real</th>
+                     <th className="p-2 border border-slate-500">P/L (Ajustado)</th>
                      <th className="p-2 border border-slate-500 bg-amber-200">Meta da Dezena</th>
                      <th className="p-2 border border-slate-500 bg-amber-200">Progresso</th>
                      <th className="p-2 border border-slate-500 bg-amber-300 min-w-[120px]">Meta Atingida?</th>
-                     <th className="p-2 border border-slate-500">Saldo Final (Real)</th>
+                     <th className="p-2 border border-slate-500">Saldo Final (Proj.)</th>
                    </tr>
                  </thead>
                  <tbody>
                    {projectionData.map((plan, i) => {
-                     // Lógica para mostrar apenas dezenas que já existem ou a atual
                      if (i > activeProjectDezena) return null;
 
                      const dezenaBets = dezenas[i] || [];
                      const isCurrent = i === activeProjectDezena;
                      const isPast = i < activeProjectDezena;
                      
-                     // Dados Reais da Dezena
-                     const actualProfit = dezenaBets.reduce((acc, b) => acc + b.profit, 0);
+                     // Dados Reais da Dezena (AJUSTADOS)
+                     const theoreticalStake = plan.stake;
+                     const adjustedActualProfit = dezenaBets.reduce((acc, b) => acc + getAdjustedProfit(b, theoreticalStake), 0);
                      
-                     // Banca Inicial e Stake agora seguem a PROGRAMAÇÃO (plan)
+                     // Banca Inicial e Stake seguem a PROGRAMAÇÃO (plan)
                      const realStartBank = plan.bank;
                      const realStake = plan.stake;
                      const targetMeta = plan.goal;
                      
-                     // O Saldo Final Real mostra o resultado da banca inicial teórica + lucro real obtido
-                     const finalBalanceReal = realStartBank + actualProfit;
+                     // O Saldo Final Projeção mostra a banca inicial teórica + lucro ajustado
+                     const finalBalanceProj = realStartBank + adjustedActualProfit;
                      
-                     // Cálculo do progresso
-                     const progressPct = targetMeta > 0 ? Math.min(100, Math.max(0, (actualProfit / targetMeta) * 100)) : 0;
-                     const isNegative = actualProfit < 0;
-
-                     // Contagem de dias de trabalho únicos
+                     const progressPct = targetMeta > 0 ? Math.min(100, Math.max(0, (adjustedActualProfit / targetMeta) * 100)) : 0;
+                     const isNegative = adjustedActualProfit < 0;
                      const uniqueDays = new Set(dezenaBets.map(b => new Date(b.date).toDateString())).size;
                      const canConclude = uniqueDays >= 10;
 
@@ -340,8 +313,8 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                          </td>
                          <td className="p-3 border-r border-slate-800 text-slate-400">{currency} {realStartBank.toFixed(2)}</td>
                          <td className="p-3 border-r border-slate-800 font-bold text-white">{currency} {realStake.toFixed(2)}</td>
-                         <td className={`p-3 border-r border-slate-800 font-bold ${actualProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                           {actualProfit > 0 ? '+' : ''}{actualProfit.toFixed(2)}
+                         <td className={`p-3 border-r border-slate-800 font-bold ${adjustedActualProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                           {adjustedActualProfit > 0 ? '+' : ''}{adjustedActualProfit.toFixed(2)}
                          </td>
                          <td className="p-3 border-r border-slate-800 bg-slate-900/50 text-amber-200">{currency} {targetMeta.toFixed(2)}</td>
                          <td className="p-3 border-r border-slate-800 bg-slate-900/50 text-amber-200 font-bold relative overflow-hidden">
@@ -383,7 +356,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                              ) : '-'}
                            </div>
                          </td>
-                         <td className="p-3 font-bold text-white">{currency} {finalBalanceReal.toFixed(2)}</td>
+                         <td className="p-3 font-bold text-white">{currency} {finalBalanceProj.toFixed(2)}</td>
                        </tr>
                      );
                    })}
@@ -409,7 +382,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                             <th className="p-3 border border-amber-900">Qtd Total</th>
                             <th className="p-3 border border-amber-900">Qtd Gol</th>
                             <th className="p-3 border border-amber-900">% Gols</th>
-                            <th className="p-3 border border-amber-900">Profit/Loss</th>
+                            <th className="p-3 border border-amber-900">Profit/Loss (Adj)</th>
                           </tr>
                         </thead>
                         <tbody className="bg-black text-slate-300 font-mono text-base">
@@ -463,9 +436,10 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
              <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl flex items-center justify-between">
                 <div>
                    <p className="text-slate-500 text-xs uppercase font-bold">Lucro Total Projeto</p>
-                   <p className={`text-2xl font-black ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(2)} {currency}
+                   <p className={`text-2xl font-black ${totalAdjustedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {totalAdjustedProfit >= 0 ? '+' : ''}{totalAdjustedProfit.toFixed(2)} {currency}
                    </p>
+                   <p className="text-[10px] text-slate-500">(Ajustado à Stake do Projeto)</p>
                 </div>
                 <div className="bg-black px-4 py-2 rounded-lg border border-slate-800">
                    <span className="text-3xl font-black text-white">{sortedBets.length}</span>
@@ -508,21 +482,26 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                       <th className="p-3 border-r border-sky-300">Data</th>
                       <th className="p-3 border-r border-sky-300">Jogo</th>
                       <th className="p-3 border-r border-sky-300">Mercado</th>
-                      <th className="p-3 border-r border-sky-300">Stake</th>
+                      <th className="p-3 border-r border-sky-300">Stake Proj.</th>
                       <th className="p-3 border-r border-sky-300">Levou Gol?</th>
-                      <th className="p-3 border-r border-sky-300">P/L</th>
-                      <th className="p-3 border-r border-sky-300">% Stake</th>
+                      <th className="p-3 border-r border-sky-300">P/L Proj.</th>
+                      <th className="p-3 border-r border-sky-300">% Stake (Real)</th>
                       <th className="p-3">Saldo Dezena {currency}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-black text-slate-300">
                     {(() => {
                         const currentDezenaBets = dezenas[selectedDezenaIndex] || [];
-                        const dezenaBaseline = projectionData[selectedDezenaIndex]?.bank || project.startBankroll;
+                        const plan = projectionData[selectedDezenaIndex];
+                        const dezenaBaseline = plan?.bank || project.startBankroll;
+                        const theoreticalStake = plan?.stake || (project.startBankroll/bankDivision);
                         
-                        const rows = currentDezenaBets.map((bet, idx) => {
-                            const localAccumulated = currentDezenaBets.slice(0, idx + 1).reduce((acc, b) => acc + b.profit, 0);
-                            const displayAccumulated = dezenaBaseline + localAccumulated;
+                        let runningAccumulated = 0;
+
+                        const rows = currentDezenaBets.map((bet) => {
+                            const adjustedProfit = getAdjustedProfit(bet, theoreticalStake);
+                            runningAccumulated += adjustedProfit;
+                            const displayAccumulated = dezenaBaseline + runningAccumulated;
                             
                             const isLost = bet.status === BetStatus.LOST;
                             const pctStake = bet.stake > 0 ? (bet.profit / bet.stake) * 100 : 0;
@@ -532,12 +511,12 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                                     <td className="p-3 border-r border-slate-900">{new Date(bet.date).toLocaleDateString()}</td>
                                     <td className="p-3 border-r border-slate-900 text-white font-bold truncate max-w-[150px]">{bet.event}</td>
                                     <td className="p-3 border-r border-slate-900 text-slate-400">{bet.market}</td>
-                                    <td className="p-3 border-r border-slate-900">{currency} {bet.stake.toFixed(2)}</td>
+                                    <td className="p-3 border-r border-slate-900">{currency} {theoreticalStake.toFixed(2)}</td>
                                     <td className="p-3 border-r border-slate-900 text-center">
                                     {isLost ? <span className="text-red-500 font-bold">SIM</span> : <span className="text-slate-600">NÃO</span>}
                                     </td>
-                                    <td className={`p-3 border-r border-slate-900 font-bold ${bet.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {bet.profit >= 0 ? '+' : ''}{bet.profit.toFixed(2)}
+                                    <td className={`p-3 border-r border-slate-900 font-bold ${adjustedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {adjustedProfit >= 0 ? '+' : ''}{adjustedProfit.toFixed(2)}
                                     </td>
                                     <td className={`p-3 border-r border-slate-900 ${pctStake >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                                     {pctStake.toFixed(1)}%
