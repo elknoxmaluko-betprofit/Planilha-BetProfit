@@ -12,7 +12,7 @@ interface ErrorBoundaryState {
 }
 
 // Simple Error Boundary to catch crash errors
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   // Explicitly declare state to satisfy TypeScript strict property initialization
   public state: ErrorBoundaryState = {
     hasError: false,

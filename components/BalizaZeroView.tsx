@@ -70,13 +70,13 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
     return rows;
   }, [project.startBankroll, bankDivision, activeProjectDezena, project.stakeGoal]);
 
-  // Função auxiliar para calcular o lucro AJUSTADO ao projeto
+  // Função auxiliar para calcular o lucro (USANDO O VALOR REAL/RAW)
   const getAdjustedProfit = (bet: Bet, theoreticalStake: number) => {
-      const yieldRatio = bet.stake > 0 ? (bet.profit / bet.stake) : 0;
-      return yieldRatio * theoreticalStake;
+      // Ignora a stake teórica e retorna o lucro real registado na aposta
+      return bet.profit;
   };
 
-  // Calcula o totalProfit acumulado usando a lógica de lucro ajustado
+  // Calcula o totalProfit acumulado
   const totalAdjustedProfit = useMemo(() => {
      let total = 0;
      // Iterar sobre as etapas projetadas para somar o lucro

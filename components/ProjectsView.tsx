@@ -54,8 +54,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
       // Lógica específica para Baliza Zero (Cálculo Proporcional à Stake do Projeto)
       if (proj.projectType === 'BALIZA_ZERO' && proj.bankrollDivision) {
-          // 1. Calcular o lucro ajustado baseado no Yield real vs Stake Teórica
-          // Simulamos o crescimento da banca por dezena para saber a stake de cada etapa
+          // 1. Simulação do crescimento da banca
           let tempBank = proj.startBankroll;
           let tempTotalProfit = 0;
           
@@ -86,15 +85,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
               const dbets = betsByDezena[i] || [];
               let dezenaProfit = 0;
 
-              // Calcular lucro ajustado desta dezena
+              // Calcular lucro desta dezena (Valor Real)
               dbets.forEach(b => {
-                  const yieldRatio = b.stake > 0 ? (b.profit / b.stake) : 0;
-                  // O lucro no projeto é: Yield Real * Stake Teórica do Projeto
-                  // Nota: Se a stakeGoal for atingida, a stake teórica é capada
-                  let effectiveStake = dezenaStake;
-                  if (proj.stakeGoal && effectiveStake > proj.stakeGoal) effectiveStake = proj.stakeGoal;
-                  
-                  dezenaProfit += yieldRatio * effectiveStake;
+                  // Usa o lucro real monetário da aposta, independentemente da stake
+                  dezenaProfit += b.profit;
               });
 
               tempTotalProfit += dezenaProfit;
@@ -122,29 +116,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
       const roi = proj.startBankroll > 0 ? (totalProfit / proj.startBankroll) * 100 : 0;
       
-      // Gerar dados do gráfico (usando valores ajustados para Baliza Zero se necessário, 
-      // mas para simplificar o gráfico aqui usa a progressão calculada final)
-      // Nota: Para Baliza Zero, idealmente o gráfico seguiria a simulação acima, mas 
-      // uma aproximação linear baseada no tempo das apostas é aceitável para o card.
+      // Gerar dados do gráfico
       let runningBank = proj.startBankroll;
       const chartData = [
         { name: 'Start', value: proj.startBankroll },
         ...projectBets
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
           .map((b, i) => {
-             if (proj.projectType === 'BALIZA_ZERO' && proj.bankrollDivision) {
-                 // Cálculo aproximado para gráfico: Yield * Stake Atual Estimada
-                 // (Simplificação: usa a stake atual da dezena ativa para tudo no gráfico para não reprocessar loop pesado)
-                 const yieldRatio = b.stake > 0 ? (b.profit / b.stake) : 0;
-                 // Tenta pegar a stake correta da dezena dessa aposta se possível, senão usa média
-                 // Para performance do card, vamos usar o lucro ajustado aproximado se disponível, ou raw
-                 // Melhor: Usar o totalProfit acumulado calculado acima seria complexo de mapear tempo x tempo.
-                 // Fallback: Gráfico mostra tendência.
-                 const estimatedStake = (proj.startBankroll + (totalProfit * (i/projectBets.length))) / proj.bankrollDivision; 
-                 runningBank += (yieldRatio * estimatedStake);
-             } else {
-                 runningBank += b.profit;
-             }
+             runningBank += b.profit;
              return { name: i, value: runningBank };
           })
       ];
