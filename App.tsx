@@ -150,9 +150,35 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   };
 
   const advanceProjectDezena = (projectId: string) => {
-    updateProject(projectId, { 
-        activeDezenaIndex: (projects.find(p => p.id === projectId)?.activeDezenaIndex ?? 0) + 1 
-    });
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    const currentIndex = project.activeDezenaIndex ?? 0;
+    const nextIndex = currentIndex + 1;
+
+    // Lógica para mover apostas excedentes para a próxima dezena
+    // 1. Identificar apostas da dezena atual
+    const currentProjectBets = bets.filter(b => 
+        b.projectId === projectId && 
+        (b.dezenaIndex === currentIndex || b.dezenaIndex === undefined)
+    ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // 2. Calcular dias únicos
+    const uniqueDays = Array.from(new Set(currentProjectBets.map(b => new Date(b.date).toDateString())));
+    
+    // 3. Se houver mais de 10 dias, mover o excedente para a próxima dezena
+    if (uniqueDays.length > 10) {
+        const validDays = new Set(uniqueDays.slice(0, 10)); // Mantém os primeiros 10 dias
+        const betsToMove = currentProjectBets.filter(b => !validDays.has(new Date(b.date).toDateString()));
+        
+        if (betsToMove.length > 0) {
+            const idsToMove = new Set(betsToMove.map(b => b.id));
+            setBets(prev => prev.map(b => idsToMove.has(b.id) ? { ...b, dezenaIndex: nextIndex } : b));
+        }
+    }
+
+    // Atualizar índice do projeto
+    updateProject(projectId, { activeDezenaIndex: nextIndex });
   };
 
   const assignBetsToProject = (projectId: string, projectTag: string) => {
