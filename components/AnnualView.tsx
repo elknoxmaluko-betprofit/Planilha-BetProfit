@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
@@ -17,7 +16,7 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     "Jul", "Ago", "Set", "Out", "Nov", "Dez"
   ];
 
-  const { annualStats, htCount, ftCount, totalGains, totalLosses } = React.useMemo(() => {
+  const { annualStats, htCount, ftCount, totalGains, totalLosses, avgWin, avgLoss } = React.useMemo(() => {
     const settled = bets.filter(b => b.status !== BetStatus.PENDING);
     const totalProfit = settled.reduce((acc, b) => acc + b.profit, 0);
     const totalInvested = settled.reduce((acc, b) => acc + b.stake, 0);
@@ -27,6 +26,12 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     const gains = settled.filter(b => b.profit > 0).reduce((acc, b) => acc + b.profit, 0);
     const losses = settled.filter(b => b.profit < 0).reduce((acc, b) => acc + Math.abs(b.profit), 0);
     
+    // Médias
+    const winningBets = settled.filter(b => b.profit > 0);
+    const losingBets = settled.filter(b => b.profit < 0);
+    const avgWinVal = winningBets.length > 0 ? gains / winningBets.length : 0;
+    const avgLossVal = losingBets.length > 0 ? (losses * -1) / losingBets.length : 0;
+
     // Contagem HT / FT para o ano
     const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
     const ft = bets.length - ht;
@@ -57,7 +62,9 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
       htCount: ht,
       ftCount: ft,
       totalGains: gains,
-      totalLosses: losses
+      totalLosses: losses,
+      avgWin: avgWinVal,
+      avgLoss: avgLossVal
     };
   }, [bets, selectedYear, monthlyStakes]);
 
@@ -177,13 +184,27 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-6">
         <StatCard 
           title="Mercados" 
           value={`${annualStats.marketsCount}`} 
           icon="fa-shop" 
           color="text-purple-400" 
           subtitle={`HT ${htCount} | FT ${ftCount}`} 
+        />
+        <StatCard 
+          title="Green Médio" 
+          value={`+${avgWin.toFixed(2)}${currency}`} 
+          icon="fa-arrow-up" 
+          color="text-emerald-400" 
+          subtitle="Média por vitória" 
+        />
+        <StatCard 
+          title="Red Médio" 
+          value={`${avgLoss.toFixed(2)}${currency}`} 
+          icon="fa-arrow-down" 
+          color="text-red-400" 
+          subtitle="Média por derrota" 
         />
         <StatCard title="Win Rate" value={`${annualStats.winRate.toFixed(1)}%`} icon="fa-bullseye" color="text-blue-400" subtitle="Taxa de acerto anual" />
         <StatCard 

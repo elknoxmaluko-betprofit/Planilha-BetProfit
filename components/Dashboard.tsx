@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Stats, Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
@@ -14,10 +13,22 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, currency }) => {
   
   // Cálculos Auxiliares
-  const { htCount, ftCount } = React.useMemo(() => {
+  const { htCount, ftCount, avgWin, avgLoss } = React.useMemo(() => {
     const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
     const ft = bets.length - ht;
-    return { htCount: ht, ftCount: ft };
+
+    const winningBets = bets.filter(b => b.profit > 0);
+    const losingBets = bets.filter(b => b.profit < 0);
+
+    const avgWinVal = winningBets.length > 0 
+      ? winningBets.reduce((acc, b) => acc + b.profit, 0) / winningBets.length 
+      : 0;
+
+    const avgLossVal = losingBets.length > 0 
+      ? losingBets.reduce((acc, b) => acc + b.profit, 0) / losingBets.length 
+      : 0;
+
+    return { htCount: ht, ftCount: ft, avgWin: avgWinVal, avgLoss: avgLossVal };
   }, [bets]);
 
   const dailyData = React.useMemo(() => {
@@ -160,8 +171,10 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         </div>
       </div>
 
-      {/* Linha de 4 Cartões Estatísticos */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      {/* Linha de Cartões Estatísticos (Agora com Green/Red Médio) */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+        
+        {/* Card 1: Mercados */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 mb-4">
              <i className="fas fa-store"></i>
@@ -173,6 +186,31 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
+        {/* Card 2: Green Médio (NOVO) */}
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
+             <i className="fas fa-arrow-up"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Green Médio</p>
+           <h4 className="text-2xl font-black text-emerald-400 mb-2">+{avgWin.toFixed(2)}{currency}</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Média por vitória
+           </p>
+        </div>
+
+        {/* Card 3: Red Médio (NOVO) */}
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-400 mb-4">
+             <i className="fas fa-arrow-down"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Red Médio</p>
+           <h4 className="text-2xl font-black text-red-400 mb-2">{avgLoss.toFixed(2)}{currency}</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Média por derrota
+           </p>
+        </div>
+
+        {/* Card 4: ROI Mensal */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
              <i className="fas fa-percentage"></i>
@@ -186,6 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
+        {/* Card 5: Win Rate */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 mb-4">
              <i className="fas fa-bullseye"></i>
@@ -197,6 +236,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
+        {/* Card 6: Yield */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-yellow-500/10 rounded-xl flex items-center justify-center text-yellow-400 mb-4">
              <i className="fas fa-chart-line"></i>
