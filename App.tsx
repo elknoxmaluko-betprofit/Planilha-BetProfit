@@ -110,14 +110,16 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   const addBet = async (bet: Bet) => {
     const betToSave = { ...bet };
     
-    // Auto-associação a projeto
+    // Auto-associação a projeto via Tags
     if (!betToSave.projectId && betToSave.tags) {
       betToSave.projectId = getProjectIdFromTags(betToSave.tags);
     }
+
     // Auto-associação de dezena se for projeto Baliza Zero
     if (betToSave.projectId) {
         const project = projects.find(p => p.id === betToSave.projectId);
         if (project && project.projectType === 'BALIZA_ZERO') {
+            // Garante que usa a dezena ativa do projeto
             betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
         }
     }
@@ -127,7 +129,35 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   };
 
   const updateBet = async (id: string, updates: Partial<Bet>) => {
-    setBets(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+    setBets(prev => prev.map(b => {
+      if (b.id !== id) return b;
+      
+      const updatedBet = { ...b, ...updates };
+      
+      // Se as tags foram atualizadas, verificar se é necessário associar a projeto/dezena
+      if (updates.tags) {
+        // Se ainda não tem projeto, tenta encontrar pelas novas tags
+        if (!updatedBet.projectId) {
+           const newProjectId = getProjectIdFromTags(updatedBet.tags);
+           if (newProjectId) {
+              updatedBet.projectId = newProjectId;
+              const project = projects.find(p => p.id === newProjectId);
+              if (project && project.projectType === 'BALIZA_ZERO') {
+                 updatedBet.dezenaIndex = project.activeDezenaIndex ?? 0;
+              }
+           }
+        } 
+        // Se já tem projeto, mas a dezena não está definida (ex: adicionou tag depois), definir
+        else if (updatedBet.projectId && updatedBet.dezenaIndex === undefined) {
+           const project = projects.find(p => p.id === updatedBet.projectId);
+           if (project && project.projectType === 'BALIZA_ZERO') {
+              updatedBet.dezenaIndex = project.activeDezenaIndex ?? 0;
+           }
+        }
+      }
+      
+      return updatedBet;
+    }));
   };
 
   const deleteBet = async (id: string) => {
@@ -157,18 +187,15 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     const nextIndex = currentIndex + 1;
 
     // Lógica para mover apostas excedentes para a próxima dezena
-    // 1. Identificar apostas da dezena atual
     const currentProjectBets = bets.filter(b => 
         b.projectId === projectId && 
         (b.dezenaIndex === currentIndex || b.dezenaIndex === undefined)
     ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // 2. Calcular dias únicos
     const uniqueDays = Array.from(new Set(currentProjectBets.map(b => new Date(b.date).toDateString())));
     
-    // 3. Se houver mais de 10 dias, mover o excedente para a próxima dezena
     if (uniqueDays.length > 10) {
-        const validDays = new Set(uniqueDays.slice(0, 10)); // Mantém os primeiros 10 dias
+        const validDays = new Set(uniqueDays.slice(0, 10));
         const betsToMove = currentProjectBets.filter(b => !validDays.has(new Date(b.date).toDateString()));
         
         if (betsToMove.length > 0) {
@@ -183,9 +210,14 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
 
   const assignBetsToProject = (projectId: string, projectTag: string) => {
     if (!projectTag) return;
+    
+    const project = projects.find(p => p.id === projectId);
+    const targetDezenaIndex = project?.activeDezenaIndex ?? 0;
+
     setBets(prev => prev.map(b => {
       if (b.tags?.some(t => t.toLowerCase() === projectTag.toLowerCase())) {
-         return { ...b, projectId, dezenaIndex: 0 };
+         // Respeita a dezena ativa do projeto em vez de forçar 0
+         return { ...b, projectId, dezenaIndex: targetDezenaIndex };
       }
       return b;
     }));
