@@ -16,7 +16,7 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     "Jul", "Ago", "Set", "Out", "Nov", "Dez"
   ];
 
-  const { annualStats, htCount, ftCount, totalGains, totalLosses, avgWin, avgLoss } = React.useMemo(() => {
+  const { annualStats, htCount, ftCount, totalGains, totalLosses, avgWin, avgLoss, avgWinPct, avgLossPct } = React.useMemo(() => {
     const settled = bets.filter(b => b.status !== BetStatus.PENDING);
     const totalProfit = settled.reduce((acc, b) => acc + b.profit, 0);
     const totalInvested = settled.reduce((acc, b) => acc + b.stake, 0);
@@ -31,6 +31,15 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     const losingBets = settled.filter(b => b.profit < 0);
     const avgWinVal = winningBets.length > 0 ? gains / winningBets.length : 0;
     const avgLossVal = losingBets.length > 0 ? (losses * -1) / losingBets.length : 0;
+
+    // Percentagens médias (ROI por aposta)
+    const avgWinPctVal = winningBets.length > 0
+      ? winningBets.reduce((acc, b) => acc + ((b.stake > 0 ? b.profit / b.stake : 0) * 100), 0) / winningBets.length
+      : 0;
+
+    const avgLossPctVal = losingBets.length > 0
+      ? losingBets.reduce((acc, b) => acc + ((b.stake > 0 ? b.profit / b.stake : 0) * 100), 0) / losingBets.length
+      : 0;
 
     // Contagem HT / FT para o ano
     const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
@@ -64,7 +73,9 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
       totalGains: gains,
       totalLosses: losses,
       avgWin: avgWinVal,
-      avgLoss: avgLossVal
+      avgLoss: avgLossVal,
+      avgWinPct: avgWinPctVal,
+      avgLossPct: avgLossPctVal
     };
   }, [bets, selectedYear, monthlyStakes]);
 
@@ -194,14 +205,14 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
         />
         <StatCard 
           title="Green Médio" 
-          value={`+${avgWin.toFixed(2)}${currency}`} 
+          value={`+${avgWin.toFixed(2)}${currency} (+${avgWinPct.toFixed(1)}%)`} 
           icon="fa-arrow-up" 
           color="text-emerald-400" 
           subtitle="Média por vitória" 
         />
         <StatCard 
           title="Red Médio" 
-          value={`${avgLoss.toFixed(2)}${currency}`} 
+          value={`${avgLoss.toFixed(2)}${currency} (${avgLossPct.toFixed(1)}%)`} 
           icon="fa-arrow-down" 
           color="text-red-400" 
           subtitle="Média por derrota" 

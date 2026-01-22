@@ -13,7 +13,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, currency }) => {
   
   // Cálculos Auxiliares
-  const { htCount, ftCount, avgWin, avgLoss } = React.useMemo(() => {
+  const { htCount, ftCount, avgWin, avgLoss, avgWinPct, avgLossPct } = React.useMemo(() => {
     const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
     const ft = bets.length - ht;
 
@@ -28,7 +28,23 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       ? losingBets.reduce((acc, b) => acc + b.profit, 0) / losingBets.length 
       : 0;
 
-    return { htCount: ht, ftCount: ft, avgWin: avgWinVal, avgLoss: avgLossVal };
+    // Percentagens médias (ROI por aposta)
+    const avgWinPctVal = winningBets.length > 0
+      ? winningBets.reduce((acc, b) => acc + ((b.stake > 0 ? b.profit / b.stake : 0) * 100), 0) / winningBets.length
+      : 0;
+
+    const avgLossPctVal = losingBets.length > 0
+      ? losingBets.reduce((acc, b) => acc + ((b.stake > 0 ? b.profit / b.stake : 0) * 100), 0) / losingBets.length
+      : 0;
+
+    return { 
+      htCount: ht, 
+      ftCount: ft, 
+      avgWin: avgWinVal, 
+      avgLoss: avgLossVal,
+      avgWinPct: avgWinPctVal,
+      avgLossPct: avgLossPctVal
+    };
   }, [bets]);
 
   const dailyData = React.useMemo(() => {
@@ -186,27 +202,27 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
-        {/* Card 2: Green Médio (NOVO) */}
+        {/* Card 2: Green Médio (ATUALIZADO) */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
              <i className="fas fa-arrow-up"></i>
            </div>
            <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Green Médio</p>
            <h4 className="text-2xl font-black text-emerald-400 mb-2">+{avgWin.toFixed(2)}{currency}</h4>
-           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
-             Média por vitória
+           <p className="text-[10px] text-emerald-500/70 font-bold pt-2 border-t border-slate-800/50">
+             +{avgWinPct.toFixed(1)}% <span className="text-slate-500 font-normal">por aposta</span>
            </p>
         </div>
 
-        {/* Card 3: Red Médio (NOVO) */}
+        {/* Card 3: Red Médio (ATUALIZADO) */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-400 mb-4">
              <i className="fas fa-arrow-down"></i>
            </div>
            <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Red Médio</p>
            <h4 className="text-2xl font-black text-red-400 mb-2">{avgLoss.toFixed(2)}{currency}</h4>
-           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
-             Média por derrota
+           <p className="text-[10px] text-red-500/70 font-bold pt-2 border-t border-slate-800/50">
+             {avgLossPct.toFixed(1)}% <span className="text-slate-500 font-normal">por aposta</span>
            </p>
         </div>
 
