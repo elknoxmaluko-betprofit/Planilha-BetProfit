@@ -202,27 +202,27 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
-        {/* Card 2: Green Médio (ATUALIZADO) */}
+        {/* Card 2: Green Médio (ATUALIZADO PARA %) */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
              <i className="fas fa-arrow-up"></i>
            </div>
            <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Green Médio</p>
-           <h4 className="text-2xl font-black text-emerald-400 mb-2">+{avgWin.toFixed(2)}{currency}</h4>
-           <p className="text-[10px] text-emerald-500/70 font-bold pt-2 border-t border-slate-800/50">
-             +{avgWinPct.toFixed(1)}% <span className="text-slate-500 font-normal">por aposta</span>
+           <h4 className="text-2xl font-black text-emerald-400 mb-2">+{avgWinPct.toFixed(2)}%</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Média por aposta
            </p>
         </div>
 
-        {/* Card 3: Red Médio (ATUALIZADO) */}
+        {/* Card 3: Red Médio (ATUALIZADO PARA %) */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-400 mb-4">
              <i className="fas fa-arrow-down"></i>
            </div>
            <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Red Médio</p>
-           <h4 className="text-2xl font-black text-red-400 mb-2">{avgLoss.toFixed(2)}{currency}</h4>
-           <p className="text-[10px] text-red-500/70 font-bold pt-2 border-t border-slate-800/50">
-             {avgLossPct.toFixed(1)}% <span className="text-slate-500 font-normal">por aposta</span>
+           <h4 className="text-2xl font-black text-red-400 mb-2">{avgLossPct.toFixed(2)}%</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Média por aposta
            </p>
         </div>
 

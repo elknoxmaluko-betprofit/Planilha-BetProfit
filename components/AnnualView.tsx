@@ -205,14 +205,14 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
         />
         <StatCard 
           title="Green Médio" 
-          value={`+${avgWin.toFixed(2)}${currency} (+${avgWinPct.toFixed(1)}%)`} 
+          value={`+${avgWinPct.toFixed(2)}%`} 
           icon="fa-arrow-up" 
           color="text-emerald-400" 
           subtitle="Média por vitória" 
         />
         <StatCard 
           title="Red Médio" 
-          value={`${avgLoss.toFixed(2)}${currency} (${avgLossPct.toFixed(1)}%)`} 
+          value={`${avgLossPct.toFixed(2)}%`} 
           icon="fa-arrow-down" 
           color="text-red-400" 
           subtitle="Média por derrota" 
