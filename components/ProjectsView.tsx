@@ -54,8 +54,23 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
       // Lógica específica para Baliza Zero (Cálculo Proporcional à Stake do Projeto)
       if (proj.projectType === 'BALIZA_ZERO' && proj.bankrollDivision) {
-          // 1. Simulação do crescimento da banca
-          let tempBank = proj.startBankroll;
+          // 1. Cálculo da Stake Teórica para a Dezena Ativa (Plano Perfeito)
+          // Garante que a stake exibida corresponde exatamente à etapa em vigor
+          let theoBank = proj.startBankroll;
+          const activeIdx = proj.activeDezenaIndex || 0;
+          
+          for (let i = 0; i <= activeIdx; i++) {
+              let s = theoBank / proj.bankrollDivision;
+              if (proj.stakeGoal && s > proj.stakeGoal) s = proj.stakeGoal;
+              
+              if (i === activeIdx) {
+                  currentDezenaStake = s;
+              }
+              // Crescimento teórico (Meta de 2.5x a stake)
+              theoBank += (s * 2.5);
+          }
+
+          // 2. Cálculo dos Resultados Reais (Lucro e Banca Atual)
           let tempTotalProfit = 0;
           
           // Agrupar apostas por dezena
@@ -66,39 +81,25 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
               betsByDezena[d].push(b);
           });
 
-          // Encontrar a última dezena ativa ou máxima registada
-          const maxDezena = Math.max(proj.activeDezenaIndex || 0, ...Object.keys(betsByDezena).map(Number));
+          // Encontrar a última dezena com apostas
+          const maxDezena = Math.max(activeIdx, ...Object.keys(betsByDezena).map(Number));
 
           for (let i = 0; i <= maxDezena; i++) {
-              // Stake teórica desta dezena (com base na banca acumulada até aqui)
-              const dezenaStake = tempBank / proj.bankrollDivision;
-              
-              // Se for a dezena ativa, guardamos para mostrar no card
-              if (i === (proj.activeDezenaIndex || 0)) {
-                  currentDezenaStake = dezenaStake;
-                  // Cap na stake goal se existir
-                  if (proj.stakeGoal && currentDezenaStake > proj.stakeGoal) {
-                      currentDezenaStake = proj.stakeGoal;
-                  }
-              }
-
               const dbets = betsByDezena[i] || [];
               let dezenaProfit = 0;
 
               // Calcular lucro desta dezena (Valor Real)
               dbets.forEach(b => {
-                  // Usa o lucro real monetário da aposta, independentemente da stake
                   dezenaProfit += b.profit;
               });
 
               tempTotalProfit += dezenaProfit;
-              tempBank += dezenaProfit;
           }
 
           totalProfit = tempTotalProfit;
-          currentBankroll = tempBank;
+          currentBankroll = proj.startBankroll + totalProfit;
 
-          // Progresso visual Baliza Zero
+          // Progresso visual Baliza Zero (Baseado na Stake Teórica)
           const startStake = proj.startBankroll / proj.bankrollDivision;
           if (proj.stakeGoal && proj.stakeGoal > startStake) {
                progress = ((currentDezenaStake - startStake) / (proj.stakeGoal - startStake)) * 100;
