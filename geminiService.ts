@@ -2,18 +2,13 @@ import { GoogleGenAI } from "@google/genai";
 import { Bet } from "./types";
 
 // Lazy initialization of the AI client
-// This prevents the app from crashing on startup if process.env.API_KEY is not immediately available or if process is undefined during module evaluation.
 let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
-    // process.env.API_KEY is replaced by Vite at build time via define
-    const key = process.env.API_KEY;
-    if (!key) {
-      console.warn("API_KEY not found in environment variables.");
-      // You might want to handle this gracefully in the UI
-    }
-    ai = new GoogleGenAI({ apiKey: key || 'DUMMY_KEY_TO_PREVENT_CRASH' });
+    // API key must be obtained exclusively from process.env.API_KEY
+    // Assume process.env.API_KEY is pre-configured and valid
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
   return ai;
 };

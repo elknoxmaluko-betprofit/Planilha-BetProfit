@@ -76,10 +76,68 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
       return bet.profit;
   };
 
-  // Calcula o totalProfit acumulado
-  const totalAdjustedProfit = useMemo(() => {
+  // Lógica de "Carry Over" (Passagem de Excesso)
+  const processedDezenaStats = useMemo(() => {
+    const stats: Record<number, { 
+      rawProfit: number; 
+      incomingCarryOver: number; 
+      displayProfit: number; 
+      outgoingCarryOver: number 
+    }> = {};
+
+    let currentCarryOver = 0;
+
+    projectionData.forEach((plan, i) => {
+       // Não precisamos calcular além do que é visível/ativo
+       if (i > activeProjectDezena) return;
+
+       const bets = dezenasMap[i] || [];
+       const theoreticalStake = plan.stake;
+       
+       // 1. Lucro Real das Apostas nesta Dezena
+       const rawProfit = bets.reduce((acc, b) => acc + getAdjustedProfit(b, theoreticalStake), 0);
+       
+       // 2. Lucro Total Disponível (Apostas + Excesso da anterior)
+       const totalAvailable = rawProfit + currentCarryOver;
+       const target = plan.goal;
+       
+       let finalDisplayProfit = totalAvailable;
+       let nextCarryOver = 0;
+
+       // Se for uma dezena passada (já concluída)
+       if (i < activeProjectDezena) {
+          if (totalAvailable > target) {
+             // Se superou a meta, o lucro exibido é "capado" na meta
+             finalDisplayProfit = target;
+             // O excedente passa para a frente
+             nextCarryOver = totalAvailable - target;
+          } else {
+             // Se não atingiu, não há excesso a passar (assumindo que prejuízo não transita como débito, apenas corta o boost)
+             nextCarryOver = 0;
+          }
+       } else {
+          // Se for a dezena ATUAL, mostramos tudo (Apostas + Excesso acumulado) para ajudar no progresso
+          finalDisplayProfit = totalAvailable;
+          nextCarryOver = 0; // Ainda não fechou, não passa nada para a frente (virtualmente)
+       }
+
+       stats[i] = {
+         rawProfit,
+         incomingCarryOver: currentCarryOver,
+         displayProfit: finalDisplayProfit,
+         outgoingCarryOver: nextCarryOver
+       };
+
+       // Atualiza para a próxima iteração
+       currentCarryOver = nextCarryOver;
+    });
+
+    return stats;
+  }, [dezenasMap, projectionData, activeProjectDezena]);
+
+  // Calcula o totalProfit acumulado (Baseado nas apostas reais, sem carry over virtual duplicado)
+  const totalRealProfit = useMemo(() => {
      let total = 0;
-     // Iterar sobre as etapas projetadas para somar o lucro
      projectionData.forEach((plan, index) => {
          const dezenaBets = dezenasMap[index] || [];
          const theoreticalStake = plan.stake;
@@ -284,24 +342,25 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                    {projectionData.map((plan, i) => {
                      if (i > activeProjectDezena) return null;
 
-                     const dezenaBets = dezenasMap[i] || []; // Usar Map
+                     const dezenaBets = dezenasMap[i] || [];
                      const isCurrent = i === activeProjectDezena;
                      const isPast = i < activeProjectDezena;
                      
-                     // Dados Reais da Dezena (AJUSTADOS)
-                     const theoreticalStake = plan.stake;
-                     const adjustedActualProfit = dezenaBets.reduce((acc, b) => acc + getAdjustedProfit(b, theoreticalStake), 0);
+                     // Usamos os stats processados que contêm o Carry Over
+                     const stats = processedDezenaStats[i] || { rawProfit: 0, incomingCarryOver: 0, displayProfit: 0, outgoingCarryOver: 0 };
+                     
+                     const displayProfit = stats.displayProfit; // Lucro (com cap se passado) + Excesso vindo de trás
                      
                      // Banca Inicial e Stake seguem a PROGRAMAÇÃO (plan)
                      const realStartBank = plan.bank;
                      const realStake = plan.stake;
                      const targetMeta = plan.goal;
                      
-                     // O Saldo Final Projeção mostra a banca inicial teórica + lucro ajustado
-                     const finalBalanceProj = realStartBank + adjustedActualProfit;
+                     // Saldo Final = Banca Inicial (Plan) + Lucro Real Total (Apostas + Excesso)
+                     const finalBalanceProj = realStartBank + displayProfit;
                      
-                     const progressPct = targetMeta > 0 ? Math.min(100, Math.max(0, (adjustedActualProfit / targetMeta) * 100)) : 0;
-                     const isNegative = adjustedActualProfit < 0;
+                     const progressPct = targetMeta > 0 ? Math.min(100, Math.max(0, (displayProfit / targetMeta) * 100)) : 0;
+                     const isNegative = displayProfit < 0;
                      const uniqueDays = new Set(dezenaBets.map(b => new Date(b.date).toDateString())).size;
                      const canConclude = uniqueDays >= 10;
 
@@ -314,8 +373,10 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                          </td>
                          <td className="p-3 border-r border-slate-800 text-slate-400">{currency} {realStartBank.toFixed(2)}</td>
                          <td className="p-3 border-r border-slate-800 font-bold text-white">{currency} {realStake.toFixed(2)}</td>
-                         <td className={`p-3 border-r border-slate-800 font-bold ${adjustedActualProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                           {adjustedActualProfit > 0 ? '+' : ''}{adjustedActualProfit.toFixed(2)}
+                         <td className={`p-3 border-r border-slate-800 font-bold ${displayProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                           {displayProfit > 0 ? '+' : ''}{displayProfit.toFixed(2)}
+                           {stats.incomingCarryOver > 0 && <span className="block text-[8px] text-amber-500 opacity-80">(Inclui +{stats.incomingCarryOver.toFixed(2)} Excesso)</span>}
+                           {stats.outgoingCarryOver > 0 && <span className="block text-[8px] text-blue-400 opacity-80">(Passou +{stats.outgoingCarryOver.toFixed(2)})</span>}
                          </td>
                          <td className="p-3 border-r border-slate-800 bg-slate-900/50 text-amber-200">{currency} {targetMeta.toFixed(2)}</td>
                          <td className="p-3 border-r border-slate-800 bg-slate-900/50 text-amber-200 font-bold relative overflow-hidden">
@@ -437,10 +498,10 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
              <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl flex items-center justify-between">
                 <div>
                    <p className="text-slate-500 text-xs uppercase font-bold">Lucro Total Projeto</p>
-                   <p className={`text-2xl font-black ${totalAdjustedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {totalAdjustedProfit >= 0 ? '+' : ''}{totalAdjustedProfit.toFixed(2)} {currency}
+                   <p className={`text-2xl font-black ${totalRealProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {totalRealProfit >= 0 ? '+' : ''}{totalRealProfit.toFixed(2)} {currency}
                    </p>
-                   <p className="text-[10px] text-slate-500">(Ajustado à Stake do Projeto)</p>
+                   <p className="text-[10px] text-slate-500">(Real / Sem ajustes)</p>
                 </div>
                 <div className="bg-black px-4 py-2 rounded-lg border border-slate-800">
                    <span className="text-3xl font-black text-white">{sortedBets.length}</span>
@@ -497,9 +558,26 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                         const dezenaBaseline = plan?.bank || project.startBankroll;
                         const theoreticalStake = plan?.stake || (project.startBankroll/bankDivision);
                         
-                        let runningAccumulated = 0;
+                        // Obter excesso vindo de trás
+                        const stats = processedDezenaStats[selectedDezenaIndex] || { incomingCarryOver: 0 };
+                        const carryOver = stats.incomingCarryOver;
+                        
+                        let runningAccumulated = carryOver; // O acumulado começa com o excesso
 
-                        if (currentDezenaBets.length === 0) {
+                        const rows = [];
+
+                        // 1. Linha de Excesso (se houver)
+                        if (carryOver > 0) {
+                             rows.push(
+                                <tr key="carry-over" className="bg-amber-900/20 border-b border-slate-800">
+                                   <td className="p-3 border-r border-slate-800 text-amber-500 font-bold">Início</td>
+                                   <td className="p-3 border-r border-slate-800 text-amber-500 font-bold" colSpan={4}>EXCESSO DEZENA ANTERIOR</td>
+                                   <td className="p-3 border-r border-slate-800 text-emerald-400 font-bold">+{carryOver.toFixed(2)}</td>
+                                   <td className="p-3 border-r border-slate-800">-</td>
+                                   <td className="p-3 font-bold text-blue-400">{currency} {(dezenaBaseline + carryOver).toFixed(2)}</td>
+                                </tr>
+                             );
+                        } else if (currentDezenaBets.length === 0) {
                             return (
                                 <tr>
                                     <td colSpan={8} className="p-8 text-center text-slate-500 italic">
@@ -509,7 +587,8 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                             );
                         }
 
-                        const rows = currentDezenaBets.map((bet) => {
+                        // 2. Linhas de Apostas
+                        const betRows = currentDezenaBets.map((bet) => {
                             const adjustedProfit = getAdjustedProfit(bet, theoreticalStake);
                             runningAccumulated += adjustedProfit;
                             const displayAccumulated = dezenaBaseline + runningAccumulated;
@@ -538,7 +617,8 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                                 </tr>
                             );
                         });
-                        return rows;
+
+                        return [...rows, ...betRows];
                     })()}
                   </tbody>
                </table>
