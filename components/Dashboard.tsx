@@ -67,20 +67,20 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
   const equityData = React.useMemo(() => {
     if (bets.length === 0) return [];
     const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    let runningBank = stats.monthlyBankroll;
+    let runningProfit = 0;
     
     const data = [
-      { name: 'Início', balance: stats.monthlyBankroll },
+      { name: 'Início', balance: 0 },
       ...sortedBets.map((bet, index) => {
-        runningBank += bet.profit;
+        runningProfit += bet.profit;
         return {
           name: `Aposta ${index + 1}`,
-          balance: parseFloat(runningBank.toFixed(2))
+          balance: parseFloat(runningProfit.toFixed(2))
         };
       })
     ];
     return data;
-  }, [bets, stats.monthlyBankroll]);
+  }, [bets]);
 
   const teamPerformanceData = React.useMemo(() => {
     const teamStats: Record<string, number> = {};
@@ -143,6 +143,20 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
   }, [bets]);
 
   const currentBank = stats.monthlyBankroll + stats.totalProfit;
+  
+  // Logic for Dynamic Chart Styling
+  const gradientOffset = () => {
+    if (equityData.length === 0) return 0;
+    const dataMax = Math.max(...equityData.map((i) => i.balance));
+    const dataMin = Math.min(...equityData.map((i) => i.balance));
+  
+    if (dataMax <= 0) return 0;
+    if (dataMin >= 0) return 1;
+  
+    return dataMax / (dataMax - dataMin);
+  };
+  
+  const off = gradientOffset();
 
   return (
     <div className="space-y-6">
@@ -187,7 +201,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         </div>
       </div>
 
-      {/* Linha de Cartões Estatísticos (Agora com Green/Red Médio) */}
+      {/* Linha de Cartões Estatísticos (Movia para cima) */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         
         {/* Card 1: Mercados */}
@@ -202,7 +216,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
-        {/* Card 2: Green Médio (ATUALIZADO PARA %) */}
+        {/* Card 2: Green Médio */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
              <i className="fas fa-arrow-up"></i>
@@ -214,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </p>
         </div>
 
-        {/* Card 3: Red Médio (ATUALIZADO PARA %) */}
+        {/* Card 3: Red Médio */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
            <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-400 mb-4">
              <i className="fas fa-arrow-down"></i>
@@ -267,7 +281,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         </div>
       </div>
 
-      {/* Gráficos Principais */}
+      {/* Gráficos Principais (Diário e Pizza) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Gráfico de Lucro Diário */}
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
@@ -347,30 +361,67 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         </div>
       </div>
 
-      {/* Curva de Equidade */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
+      {/* Curva de Equidade - ESTILO NOVO (BETFAIR STYLE DARK MODE) - MOVED & RENAMED */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-6 lg:p-8 shadow-lg">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
-             <i className="fas fa-chart-area text-yellow-400 text-sm"></i> Curva de Crescimento
-          </h3>
+           <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
+             <i className="fas fa-chart-area text-yellow-400 text-sm"></i> Curva de Crescimento Mensal
+           </h3>
         </div>
-        <div className="h-[200px] lg:h-[300px]">
+        <div className="h-[250px] lg:h-[350px] w-full">
           {equityData.length > 1 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityData}>
+              <AreaChart data={equityData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorBalanceDb" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#facc15" stopOpacity={0.3}/><stop offset="95%" stopColor="#facc15" stopOpacity={0}/>
+                  <linearGradient id="splitColor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset={off} stopColor="#34d399" stopOpacity={1} />
+                    <stop offset={off} stopColor="#f87171" stopOpacity={1} />
+                  </linearGradient>
+                  <linearGradient id="splitFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset={off} stopColor="#34d399" stopOpacity={0.3} />
+                    <stop offset={off} stopColor="#f87171" stopOpacity={0.3} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="name" hide />
-                <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px' }} 
-                  labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                <YAxis 
+                   stroke="#64748b" 
+                   fontSize={11} 
+                   fontWeight="bold"
+                   tickLine={false} 
+                   axisLine={false} 
+                   domain={['auto', 'auto']}
+                   tickFormatter={(value) => `${value}`} 
                 />
-                <Area type="monotone" dataKey="balance" name="Banca" stroke="#facc15" strokeWidth={3} fillOpacity={1} fill="url(#colorBalanceDb)" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', border: `1px solid ${stats.totalProfit >= 0 ? '#34d39940' : '#f8717140'}`, borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }} 
+                  labelStyle={{ color: '#94a3b8', marginBottom: '4px', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                  formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(2)}${currency}`, 'Lucro Acumulado']}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="balance" 
+                  stroke="url(#splitColor)" 
+                  strokeWidth={3} 
+                  fillOpacity={1} 
+                  fill="url(#splitFill)"
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    const isPositive = payload.balance >= 0;
+                    return (
+                      <circle cx={cx} cy={cy} r={4} stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2} fill="#0f172a" />
+                    );
+                  }}
+                  activeDot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    const isPositive = payload.balance >= 0;
+                    return (
+                      <circle cx={cx} cy={cy} r={6} stroke="#fff" strokeWidth={2} fill={isPositive ? "#34d399" : "#f87171"} />
+                    );
+                  }}
+                  animationDuration={1500}
+                />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
