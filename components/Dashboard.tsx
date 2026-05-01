@@ -1,16 +1,18 @@
 import React from 'react';
 import { Stats, Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import Logo from './Logo';
 
 interface DashboardProps {
   stats: Stats;
   bets: Bet[];
   allBets: Bet[];
   selectedYear: number;
+  selectedMonth: number;
   currency: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, currency }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, selectedMonth, currency }) => {
   
   // Cálculos Auxiliares
   const { htCount, ftCount, avgWin, avgLoss, avgWinPct, avgLossPct } = React.useMemo(() => {
@@ -47,22 +49,69 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
     };
   }, [bets]);
 
-  const dailyData = React.useMemo(() => {
-    if (bets.length === 0) return [];
-    const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const betsByDay: Record<number, number> = {};
+  const calendarData = React.useMemo(() => {
+    const month = selectedMonth !== undefined ? selectedMonth : new Date().getMonth();
+    const year = selectedYear !== undefined ? selectedYear : new Date().getFullYear();
+    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 is Sunday
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const cells = [];
     
-    sortedBets.forEach(bet => {
-      const day = new Date(bet.date).getDate();
-      betsByDay[day] = (betsByDay[day] || 0) + bet.profit;
-    });
+    // Empty cells for days before the 1st
+    for (let i = 0; i < firstDayOfMonth; i++) {
+        cells.push({ type: 'empty', id: `empty-start-${i}` });
+    }
+
+    // Days in current month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayBets = bets.filter(b => {
+             const bd = new Date(b.date);
+             return bd.getDate() === day && bd.getMonth() === month && bd.getFullYear() === year;
+        });
+
+        if (dayBets.length > 0) {
+             const profit = dayBets.reduce((acc, b) => acc + b.profit, 0);
+             let pctStake = 0;
+             if (stats.monthlyStake > 0) {
+                 pctStake = (profit / stats.monthlyStake) * 100;
+             }
+             let pctBankroll = 0;
+             if (stats.monthlyBankroll > 0) {
+                 pctBankroll = (profit / stats.monthlyBankroll) * 100;
+             }
+             
+             cells.push({
+                 type: 'day',
+                 id: `day-${day}`,
+                 day,
+                 count: dayBets.length,
+                 profit,
+                 pctStake,
+                 pctBankroll,
+                 hasBets: true
+             });
+        } else {
+             cells.push({
+                 type: 'day',
+                 id: `day-${day}`,
+                 day,
+                 count: 0,
+                 profit: 0,
+                 pctStake: 0,
+                 pctBankroll: 0,
+                 hasBets: false
+             });
+        }
+    }
+
+    // Fill the rest of the last row
+    const totalCells = Math.ceil(cells.length / 7) * 7;
+    for (let i = cells.length; i < totalCells; i++) {
+        cells.push({ type: 'empty', id: `empty-end-${i}` });
+    }
     
-    const days = Object.keys(betsByDay).map(Number).sort((a, b) => a - b);
-    return days.map(day => ({
-      name: `Dia ${day}`,
-      profit: parseFloat(betsByDay[day].toFixed(2))
-    }));
-  }, [bets]);
+    return cells;
+  }, [bets, selectedYear, selectedMonth, stats]);
 
   const equityData = React.useMemo(() => {
     if (bets.length === 0) return [];
@@ -290,30 +339,52 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
               <i className="fas fa-calendar-day text-yellow-400 text-sm"></i> Performance Diária
             </h3>
           </div>
-          <div className="h-[200px] lg:h-[300px]">
-            {dailyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => val.replace('Dia ', '')} />
-                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    cursor={{ fill: '#1e293b', opacity: 0.4 }} 
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px' }} 
-                    itemStyle={{ color: '#fff' }} 
-                  />
-                  <Bar dataKey="profit" radius={[4, 4, 0, 0]}>
-                    {dailyData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500 italic text-sm">
-                Sem dados para exibir
-              </div>
-            )}
+          <div className="w-full mt-4 max-w-5xl mx-auto">
+             <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
+                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                     <div key={d} className="text-center text-[10px] md:text-sm font-bold text-slate-400 py-1">{d}</div>
+                 ))}
+             </div>
+             <div className="grid grid-cols-7 gap-1 md:gap-2">
+                 {calendarData.map((cell) => {
+                     if (cell.type === 'empty') {
+                         return <div key={cell.id} className="aspect-square"></div>;
+                     }
+                     if (!cell.hasBets) {
+                         return (
+                             <div key={cell.id} className="bg-white rounded-lg p-1.5 md:p-2 aspect-square flex flex-col justify-between relative overflow-hidden shadow-sm">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20 pointer-events-none">
+                                    <Logo size="sm" />
+                                </div>
+                                <div className="text-xs md:text-sm font-medium text-slate-500 z-10 leading-none">{cell.day}</div>
+                             </div>
+                         );
+                     }
+                     
+                     const isPositive = cell.profit >= 0;
+                     const bgColor = isPositive ? 'bg-[#10b981]' : 'bg-[#ef4444]';
+
+                     return (
+                         <div key={cell.id} className={`${bgColor} text-white rounded-lg p-1 md:p-2 aspect-square flex flex-col justify-between shadow-sm`}>
+                            <div className="flex justify-between items-start text-[9px] md:text-xs font-bold opacity-90 leading-none">
+                               <span>{cell.day}</span>
+                               <span>{cell.count} M.</span>
+                            </div>
+                            
+                            <div className="flex flex-col items-center justify-center flex-1 my-0.5">
+                               <span className="text-[10px] md:text-lg font-black leading-none mb-0.5 drop-shadow-sm">
+                                   {cell.pctStake.toFixed(2)}%
+                               </span>
+                               <span className="text-[8px] md:text-xs opacity-90 drop-shadow-sm">Stake</span>
+                            </div>
+
+                            <div className="text-center text-[8px] md:text-xs font-medium opacity-90 drop-shadow-sm leading-none">
+                                {cell.pctBankroll.toFixed(2)}% B.
+                            </div>
+                         </div>
+                     );
+                 })}
+             </div>
           </div>
         </div>
 
@@ -407,17 +478,17 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                   fillOpacity={1} 
                   fill="url(#splitFill)"
                   dot={(props: any) => {
-                    const { cx, cy, payload } = props;
+                    const { cx, cy, payload, index } = props;
                     const isPositive = payload.balance >= 0;
                     return (
-                      <circle cx={cx} cy={cy} r={4} stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2} fill="#0f172a" />
+                      <circle key={`dot-${index}`} cx={cx} cy={cy} r={4} stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2} fill="#0f172a" />
                     );
                   }}
                   activeDot={(props: any) => {
-                    const { cx, cy, payload } = props;
+                    const { cx, cy, payload, index } = props;
                     const isPositive = payload.balance >= 0;
                     return (
-                      <circle cx={cx} cy={cy} r={6} stroke="#fff" strokeWidth={2} fill={isPositive ? "#34d399" : "#f87171"} />
+                      <circle key={`active-dot-${index}`} cx={cx} cy={cy} r={6} stroke="#fff" strokeWidth={2} fill={isPositive ? "#34d399" : "#f87171"} />
                     );
                   }}
                   animationDuration={1500}

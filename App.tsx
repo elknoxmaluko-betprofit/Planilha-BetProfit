@@ -472,7 +472,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
           </div>
         </header>
 
-        {view === 'dashboard' && <Dashboard stats={stats} bets={filteredBets} allBets={bets} selectedYear={selectedDate.year} currency={currency} />}
+        {view === 'dashboard' && <Dashboard stats={stats} bets={filteredBets} allBets={bets} selectedYear={selectedDate.year} selectedMonth={selectedDate.month} currency={currency} />}
         {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} currency={currency} />}
         {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
         {view === 'markets' && <MarketsView bets={filteredBets} currency={currency} />}
