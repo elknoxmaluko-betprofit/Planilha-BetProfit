@@ -88,38 +88,46 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
       </div>
 
       {/* Grid de Cards de Mercados */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {marketStats.map((market, idx) => (
-          <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 lg:p-8 rounded-3xl lg:rounded-[2rem] hover:border-slate-700 transition-all group relative overflow-hidden shadow-lg">
-            <div className="flex justify-between items-start mb-4 lg:mb-6 relative z-10">
-              <h3 className="font-black text-white text-lg lg:text-xl group-hover:text-yellow-400 transition-colors truncate max-w-[70%]">{market.name}</h3>
-              <span className={`px-2 lg:px-3 py-1 lg:py-1.5 rounded-xl text-[10px] lg:text-xs font-black ${market.profit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                {market.bets} Ops
-              </span>
+          <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 transition-all group relative overflow-hidden shadow-sm">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+              <i className={`fas ${market.name.toUpperCase().includes('FIRST HALF') ? 'fa-stopwatch' : 'fa-flag-checkered'} text-4xl`}></i>
             </div>
             
-            <div className="flex justify-between items-end relative z-10">
+            <div className="flex items-center gap-2 mb-4 relative z-10">
+              <span className="text-[10px] font-black text-slate-600 bg-slate-800 w-5 h-5 flex items-center justify-center rounded-full">
+                {idx + 1}
+              </span>
+              <h3 className="font-bold text-white text-lg truncate pr-6">{market.name}</h3>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 relative z-10">
               <div>
-                <p className="text-white text-[10px] lg:text-xs uppercase font-black tracking-widest mb-1 lg:mb-2">Taxa Acerto</p>
-                <div className="flex items-center gap-2 lg:gap-3">
-                  <div className="w-16 lg:w-24 h-1.5 lg:h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-yellow-400" style={{ width: `${market.winRate}%` }}></div>
-                  </div>
-                  <span className="text-white font-mono font-black text-xs lg:text-sm">{market.winRate.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-white text-[10px] lg:text-xs uppercase font-black tracking-widest mb-1 lg:mb-1.5">P/L Total</p>
-                <p className={`text-xl lg:text-2xl font-mono font-black ${market.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {market.profit >= 0 ? '+' : ''}{market.profit.toFixed(2)}{currency}
+                <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Yield / ROI</p>
+                <p className={`font-mono font-bold ${market.roi >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {market.roi >= 0 ? '+' : ''}{market.roi.toFixed(1)}%
                 </p>
-                <p className={`text-[10px] lg:text-xs font-mono font-bold ${market.roi >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'} mt-1`}>
-                  {market.roi >= 0 ? '+' : ''}{market.roi.toFixed(1)}% Yield
+              </div>
+              <div>
+                <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Líquido</p>
+                <p className={`font-mono font-bold ${market.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {market.profit >= 0 ? '+' : ''}{market.profit.toFixed(2)}{currency}
                 </p>
               </div>
             </div>
-
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${market.name.toUpperCase().includes('FIRST HALF') ? 'bg-yellow-400/60' : 'bg-blue-400/60'}`}></div>
+            
+            <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center relative z-10">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase">{market.bets} Entradas</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-12 h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-400" style={{ width: `${market.winRate}%` }}></div>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-bold uppercase">{market.winRate.toFixed(0)}% WR</span>
+              </div>
+            </div>
           </div>
         ))}
 
