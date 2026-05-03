@@ -506,9 +506,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       {/* Rankings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         <RankingCard title="Melhores Equipas" data={teamPerformanceData.winners} color="#10b981" icon="fa-trophy" />
-        <RankingCard title="Piores Equipas" data={teamPerformanceData.losers} color="#ef4444" icon="fa-thumbs-down" />
+        <RankingCard title="Piores Equipas" data={teamPerformanceData.losers} color="#ef4444" icon="fa-thumbs-down" alignRight />
         <RankingCard title="Melhores Ligas" data={leaguePerformanceData.winners} color="#10b981" icon="fa-medal" />
-        <RankingCard title="Piores Ligas" data={leaguePerformanceData.losers} color="#ef4444" icon="fa-exclamation-triangle" />
+        <RankingCard title="Piores Ligas" data={leaguePerformanceData.losers} color="#ef4444" icon="fa-exclamation-triangle" alignRight />
       </div>
     </div>
   );
@@ -523,7 +523,7 @@ const LegendItem: React.FC<{ color: string; label: string }> = ({ color, label }
   </div>
 );
 
-const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: string }> = ({ title, data, color, icon }) => (
+const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: string; alignRight?: boolean }> = ({ title, data, color, icon, alignRight }) => (
   <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-md">
     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
       <i className={`fas ${icon}`} style={{ color }}></i> {title}
@@ -531,12 +531,12 @@ const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: s
     <div className="h-[200px] lg:h-[250px]">
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
+          <BarChart data={data} layout="vertical" margin={{ left: alignRight ? 20 : 0, right: alignRight ? 0 : 20, top: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
             <XAxis type="number" hide />
-            <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} width={80} />
+            <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} width={80} orientation={alignRight ? 'right' : 'left'} />
             <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px' }} cursor={{ fill: '#1e293b', opacity: 0.2 }} />
-            <Bar dataKey="profit" fill={color} radius={[0, 4, 4, 0]} barSize={16} />
+            <Bar dataKey="profit" fill={color} radius={alignRight ? [4, 0, 0, 4] : [0, 4, 4, 0]} barSize={16} />
           </BarChart>
         </ResponsiveContainer>
       ) : (
