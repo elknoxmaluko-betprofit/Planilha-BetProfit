@@ -6,11 +6,14 @@ interface MethodologiesViewProps {
   available: string[];
   onCreate: (name: string) => void;
   onDelete: (name: string) => void;
+  onEdit: (oldName: string, newName: string) => void;
   currency: string;
 }
 
-const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, onCreate, onDelete, currency }) => {
+const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, onCreate, onDelete, onEdit, currency }) => {
   const [newName, setNewName] = useState('');
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -45,6 +48,14 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
       onCreate(newName.trim());
       setNewName('');
     }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent, oldName: string) => {
+    e.preventDefault();
+    if (editValue.trim() && editValue.trim() !== oldName) {
+      onEdit(oldName, editValue.trim());
+    }
+    setEditingName(null);
   };
 
   return (
@@ -85,11 +96,30 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
                 <i className="fas fa-times text-lg"></i>
               </button>
               
-              <div className="flex items-center gap-2 mb-4 relative z-10">
-                <span className="text-[10px] font-black text-slate-600 bg-slate-800 w-5 h-5 flex items-center justify-center rounded-full">
-                  {idx + 1}
-                </span>
-                <h3 className="font-bold text-white text-lg truncate pr-6">{name}</h3>
+              <div className="flex items-center justify-between mb-4 relative z-10 w-full pr-10">
+                <div className="flex items-center gap-2 w-full">
+                  <span className="text-[10px] font-black text-slate-600 bg-slate-800 w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  
+                  {editingName === name ? (
+                    <form onSubmit={(e) => handleEditSubmit(e, name)} className="flex-1 flex items-center gap-2">
+                       <input 
+                         autoFocus
+                         type="text" 
+                         value={editValue} 
+                         onChange={e => setEditValue(e.target.value)} 
+                         onBlur={() => setEditingName(null)}
+                         className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-sm outline-none w-full"
+                       />
+                    </form>
+                  ) : (
+                    <h3 className="font-bold text-white text-lg truncate flex-1 flex items-center gap-2 group/edit cursor-pointer" onClick={() => { setEditingName(name); setEditValue(name); }}>
+                      {name}
+                      <i className="fas fa-pen text-[10px] text-slate-600 opacity-0 group-hover/edit:opacity-100 transition-opacity"></i>
+                    </h3>
+                  )}
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4 relative z-10">

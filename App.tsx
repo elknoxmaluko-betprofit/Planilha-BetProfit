@@ -82,6 +82,41 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
       updateSettings({ [listName]: newList });
   };
 
+  const handleRenameListItem = (listName: 'methodologies' | 'tags' | 'leagues', oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || oldName === trimmed) return;
+    
+    // Update the list
+    if (listName === 'leagues') {
+      updateSettings({ leagues: settings.leagues.map(item => item === oldName ? trimmed : item) });
+    } else if (listName === 'methodologies') {
+      updateSettings({ methodologies: settings.methodologies.map(item => item === oldName ? trimmed : item) });
+    } else if (listName === 'tags') {
+      updateSettings({ tags: settings.tags.map(item => item === oldName ? trimmed : item) });
+    }
+
+    // Update bets historical data
+    const updatedBets = bets.map(bet => {
+      let changed = false;
+      const updatedBet = { ...bet };
+      
+      if (listName === 'leagues' && updatedBet.league === oldName) {
+        updatedBet.league = trimmed;
+        changed = true;
+      } else if (listName === 'methodologies' && updatedBet.methodology === oldName) {
+        updatedBet.methodology = trimmed;
+        changed = true;
+      } else if (listName === 'tags' && updatedBet.tags?.includes(oldName)) {
+        updatedBet.tags = updatedBet.tags.map(t => t === oldName ? trimmed : t);
+        changed = true;
+      }
+      
+      return changed ? updatedBet : bet;
+    });
+
+    setBets(updatedBets);
+  };
+
   const updateMonthlyBankroll = (val: string) => {
     const num = parseFloat(val) || 0;
     const newMap = { ...monthlyBankrolls, [`${selectedDate.year}-${selectedDate.month}`]: num };
@@ -476,10 +511,10 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} currency={currency} />}
         {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
         {view === 'markets' && <MarketsView bets={filteredBets} currency={currency} />}
-        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} currency={currency} />}
+        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} onEdit={(oldName, newName) => handleRenameListItem('leagues', oldName, newName)} currency={currency} />}
         {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
-        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} currency={currency} />}
-        {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} currency={currency} />}
+        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} onEdit={(oldName, newName) => handleRenameListItem('methodologies', oldName, newName)} currency={currency} />}
+        {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
         {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} availableTags={tagsList} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects, currency }} onDataImport={handleDataImport} />}
         {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} />}
