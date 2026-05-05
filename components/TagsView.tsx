@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Bet, BetStatus } from '../types';
+import ConfirmModal from './ConfirmModal';
 
 interface TagsViewProps {
   bets: Bet[];
@@ -15,6 +16,7 @@ const TagsView: React.FC<TagsViewProps> = ({ bets, available, onCreate, onDelete
   const [newTag, setNewTag] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [deletingName, setDeletingName] = useState<string | null>(null);
 
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -96,7 +98,7 @@ const TagsView: React.FC<TagsViewProps> = ({ bets, available, onCreate, onDelete
                  <i className="fas fa-hashtag text-4xl"></i>
               </div>
               <button 
-                onClick={() => onDelete(tag)}
+                onClick={() => setDeletingName(tag)}
                 className="absolute top-4 right-4 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all z-10"
               >
                 <i className="fas fa-times"></i>
@@ -158,6 +160,17 @@ const TagsView: React.FC<TagsViewProps> = ({ bets, available, onCreate, onDelete
           );
         })}
       </div>
+      
+      <ConfirmModal
+        isOpen={deletingName !== null}
+        title="Confirmar Eliminação"
+        message={`Tem a certeza que pretende eliminar a tag "${deletingName}"? Esta ação não afetará as apostas já guardadas com esta tag.`}
+        onConfirm={() => {
+          if (deletingName) onDelete(deletingName);
+          setDeletingName(null);
+        }}
+        onCancel={() => setDeletingName(null)}
+      />
     </div>
   );
 };

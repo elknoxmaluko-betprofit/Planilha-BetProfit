@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Bet, BetStatus, BetType } from '../types';
+import ConfirmModal from './ConfirmModal';
 
 interface BetListProps {
   bets: Bet[];
@@ -26,6 +27,7 @@ const BetList: React.FC<BetListProps> = ({
   currency
 }) => {
   const [openTagMenuId, setOpenTagMenuId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleToggleTag = (bet: Bet, tag: string) => {
     const currentTags = bet.tags || [];
@@ -136,7 +138,7 @@ const BetList: React.FC<BetListProps> = ({
                     <div className="text-xs opacity-70 mt-1">{bet.profitPercentage.toFixed(1)}% Yield</div>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button onClick={() => onDelete(bet.id)} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
+                    <button onClick={() => setDeletingId(bet.id)} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
               ))
@@ -147,6 +149,17 @@ const BetList: React.FC<BetListProps> = ({
       {openTagMenuId && (
         <div className="fixed inset-0 z-10" onClick={() => setOpenTagMenuId(null)}></div>
       )}
+      
+      <ConfirmModal
+        isOpen={deletingId !== null}
+        title="Confirmar Eliminação"
+        message="Tem a certeza que pretende eliminar esta entrada? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (deletingId) onDelete(deletingId);
+          setDeletingId(null);
+        }}
+        onCancel={() => setDeletingId(null)}
+      />
     </div>
   );
 };

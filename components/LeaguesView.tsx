@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Bet, BetStatus } from '../types';
+import ConfirmModal from './ConfirmModal';
 
 interface LeaguesViewProps {
   bets: Bet[];
@@ -14,6 +15,7 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
   const [newName, setNewName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [deletingName, setDeletingName] = useState<string | null>(null);
 
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -85,7 +87,7 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
                  <i className="fas fa-trophy text-4xl"></i>
               </div>
-              <button onClick={() => onDelete(name)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 p-2 z-10"><i className="fas fa-times"></i></button>
+              <button onClick={() => setDeletingName(name)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 p-2 z-10"><i className="fas fa-times"></i></button>
               
               <div className="flex items-center justify-between mb-4 relative z-10 w-full pr-10">
                 <div className="flex items-center gap-2 w-full">
@@ -143,6 +145,17 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
           );
         })}
       </div>
+      
+      <ConfirmModal
+        isOpen={deletingName !== null}
+        title="Confirmar Eliminação"
+        message={`Tem a certeza que pretende eliminar o campeonato "${deletingName}"? Esta ação não afetará as apostas já guardadas com este campeonato.`}
+        onConfirm={() => {
+          if (deletingName) onDelete(deletingName);
+          setDeletingName(null);
+        }}
+        onCancel={() => setDeletingName(null)}
+      />
     </div>
   );
 };
