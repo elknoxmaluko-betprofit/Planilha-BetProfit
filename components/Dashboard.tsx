@@ -119,12 +119,17 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
     let runningProfit = 0;
     
     const data = [
-      { name: 'Início', balance: 0 },
+      { name: 'Início', balance: 0, dateStr: '', betProfit: 0, betStake: 0 },
       ...sortedBets.map((bet, index) => {
         runningProfit += bet.profit;
+        const d = new Date(bet.date);
+        const dateStr = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
         return {
           name: `Aposta ${index + 1}`,
-          balance: parseFloat(runningProfit.toFixed(2))
+          balance: parseFloat(runningProfit.toFixed(2)),
+          dateStr: dateStr,
+          betProfit: bet.profit,
+          betStake: bet.stake
         };
       })
     ];
@@ -458,33 +463,77 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         <div className="h-[250px] lg:h-[350px] w-full">
           {equityData.length > 1 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={equityData} margin={{ top: 20, right: 20, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="splitColor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset={off} stopColor="#34d399" stopOpacity={1} />
-                    <stop offset={off} stopColor="#f87171" stopOpacity={1} />
+                    <stop offset={off} stopColor="#10b981" stopOpacity={1} />
+                    <stop offset={off} stopColor="#ef4444" stopOpacity={1} />
                   </linearGradient>
                   <linearGradient id="splitFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset={off} stopColor="#34d399" stopOpacity={0.3} />
-                    <stop offset={off} stopColor="#f87171" stopOpacity={0.3} />
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.6} />
+                    <stop offset={off} stopColor="#10b981" stopOpacity={0.05} />
+                    <stop offset={off} stopColor="#ef4444" stopOpacity={0.05} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.5} />
                 <XAxis dataKey="name" hide />
                 <YAxis 
-                   stroke="#64748b" 
-                   fontSize={11} 
-                   fontWeight="bold"
+                   stroke="#475569" 
+                   fontSize={10} 
+                   fontWeight="600"
                    tickLine={false} 
                    axisLine={false} 
                    domain={['auto', 'auto']}
-                   tickFormatter={(value) => `${value}`} 
+                   tickFormatter={(value) => {
+                     const pct = stats.monthlyStake > 0 ? (value / stats.monthlyStake) * 100 : 0;
+                     return `${pct > 0 ? '+' : ''}${pct.toFixed(0)}%`;
+                   }} 
+                   width={40}
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: `1px solid ${stats.totalProfit >= 0 ? '#34d39940' : '#f8717140'}`, borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }} 
-                  labelStyle={{ color: '#94a3b8', marginBottom: '4px', fontWeight: 'bold' }}
-                  itemStyle={{ color: '#fff', fontWeight: 'bold' }}
-                  formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(2)}${currency}`, 'Lucro Acumulado']}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      const pctBalance = stats.monthlyStake > 0 ? (data.balance / stats.monthlyStake) * 100 : 0;
+                      const pctProfit = stats.monthlyStake > 0 ? (data.betProfit / stats.monthlyStake) * 100 : 0;
+                      const isPositiveBalance = data.balance >= 0;
+                      const isPositiveProfit = data.betProfit >= 0;
+                      
+                      return (
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                          <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2 gap-4">
+                            <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">{data.name}</span>
+                            {data.dateStr && (
+                              <span className="text-slate-500 font-bold text-[10px] bg-slate-800/50 px-2.5 py-1 rounded-lg">
+                                {data.dateStr}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center gap-6">
+                              <span className="text-slate-400 text-xs font-semibold">Saldo Acum.</span>
+                              <span className={`font-black text-lg ${isPositiveBalance ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {isPositiveBalance ? '+' : ''}{pctBalance.toFixed(2)}%
+                              </span>
+                            </div>
+                            
+                            {data.name !== 'Início' && (
+                              <div className="flex justify-between items-center gap-6">
+                                <span className="text-slate-400 text-xs font-semibold">Res. Aposta</span>
+                                <span className={`font-black text-sm ${isPositiveProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {isPositiveProfit ? '+' : ''}{pctProfit.toFixed(2)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                  cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area 
                   type="monotone" 
@@ -493,18 +542,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                   strokeWidth={3} 
                   fillOpacity={1} 
                   fill="url(#splitFill)"
-                  dot={(props: any) => {
-                    const { cx, cy, payload, index } = props;
-                    const isPositive = payload.balance >= 0;
-                    return (
-                      <circle key={`dot-${index}`} cx={cx} cy={cy} r={4} stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2} fill="#0f172a" />
-                    );
-                  }}
                   activeDot={(props: any) => {
                     const { cx, cy, payload, index } = props;
                     const isPositive = payload.balance >= 0;
                     return (
-                      <circle key={`active-dot-${index}`} cx={cx} cy={cy} r={6} stroke="#fff" strokeWidth={2} fill={isPositive ? "#34d399" : "#f87171"} />
+                      <g key={`active-dot-${index}`}>
+                        <circle cx={cx} cy={cy} r={8} fill={isPositive ? "#10b981" : "#ef4444"} fillOpacity={0.2} />
+                        <circle cx={cx} cy={cy} r={4} stroke="#0f172a" strokeWidth={2} fill={isPositive ? "#10b981" : "#ef4444"} />
+                      </g>
                     );
                   }}
                   animationDuration={1500}
