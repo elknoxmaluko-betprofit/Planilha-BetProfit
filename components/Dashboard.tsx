@@ -334,10 +334,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Gráfico de Lucro Diário */}
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-lg">
-          <div className="flex justify-between items-center mb-6 lg:mb-8">
+          <div className="flex justify-between items-start md:items-center mb-6 lg:mb-8">
             <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
               <i className="fas fa-calendar-day text-yellow-400 text-sm"></i> Performance Diária
             </h3>
+            <div className={`text-[10px] lg:text-xs font-bold px-3 py-1.5 rounded-xl border flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 ${stats.totalProfit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+              <span className="uppercase text-slate-500 tracking-wider">Mês:</span>
+              <span>{stats.totalProfit >= 0 ? '+' : ''}{(stats.monthlyStake > 0 ? (stats.totalProfit / stats.monthlyStake) * 100 : 0).toFixed(2)}%</span>
+            </div>
           </div>
           <div className="w-full mt-4 max-w-5xl mx-auto">
              <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
@@ -352,11 +356,11 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                      }
                      if (!cell.hasBets) {
                          return (
-                             <div key={cell.id} className="bg-white rounded-lg p-1.5 md:p-2 aspect-square flex flex-col justify-between relative overflow-hidden shadow-sm">
-                                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20 pointer-events-none">
+                             <div key={cell.id} className="bg-slate-800/30 rounded-lg p-1.5 md:p-2 aspect-square flex flex-col justify-between relative overflow-hidden border border-slate-800 shadow-sm hover:bg-slate-800/50 transition-colors">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-5 pointer-events-none grayscale">
                                     <Logo size="sm" />
                                 </div>
-                                <div className="text-xs md:text-sm font-medium text-slate-500 z-10 leading-none">{cell.day}</div>
+                                <div className="text-sm md:text-base font-bold text-slate-600 z-10 leading-none">{cell.day}</div>
                              </div>
                          );
                      }
@@ -366,7 +370,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
 
                      return (
                          <div key={cell.id} className={`${bgColor} text-white rounded-lg p-1 md:p-2 aspect-square flex flex-col justify-between shadow-sm`}>
-                            <div className="flex justify-between items-start text-[9px] md:text-xs font-bold opacity-90 leading-none">
+                            <div className="flex justify-between items-start text-xs md:text-sm font-bold opacity-90 leading-none">
                                <span>{cell.day}</span>
                                <span>{cell.count} M.</span>
                             </div>
