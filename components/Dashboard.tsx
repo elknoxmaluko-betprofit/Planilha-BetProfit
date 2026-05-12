@@ -395,7 +395,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         {/* Gráfico de Pizza (Win/Loss) */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 flex flex-col shadow-lg">
           <h3 className="text-lg lg:text-xl font-bold text-white mb-4 text-center">Distribuição</h3>
-          <div className="flex-1 min-h-[200px] flex items-center justify-center relative">
+          <div className="flex-1 min-h-[220px] flex items-center justify-center relative">
              {winLossDetailedData.length > 0 ? (
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
@@ -403,8 +403,8 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                     data={winLossDetailedData} 
                     cx="50%" 
                     cy="50%" 
-                    innerRadius={60} 
-                    outerRadius={80} 
+                    innerRadius="60%" 
+                    outerRadius="80%" 
                     paddingAngle={5} 
                     dataKey="value" 
                     stroke="none"
@@ -422,16 +422,28 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
              {/* Centro do Donut */}
              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center">
-                   <span className="block text-2xl font-black text-white">{stats.totalBets}</span>
+                   <span className="block text-3xl font-black text-white">{stats.totalBets}</span>
                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Apostas</span>
                 </div>
              </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-             <LegendItem color="#fbbf24" label="HT Ganho" />
-             <LegendItem color="#fef3c7" label="HT Perda" />
-             <LegendItem color="#10b981" label="FT Ganho" />
-             <LegendItem color="#ef4444" label="FT Perda" />
+          <div className="mt-8 grid grid-cols-2 gap-3">
+             {winLossDetailedData.map((item, idx) => {
+               const totalSettled = winLossDetailedData.reduce((sum, d) => sum + d.value, 0);
+               const pct = totalSettled > 0 ? ((item.value / totalSettled) * 100).toFixed(1) : '0.0';
+               return (
+                 <div key={idx} className="flex flex-col bg-slate-800/30 p-3 rounded-2xl border border-slate-800 shadow-sm hover:bg-slate-800/50 transition-colors">
+                   <div className="flex items-center gap-2 mb-1">
+                     <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
+                     <span className="text-[10px] text-slate-400 font-bold uppercase truncate">{item.name}</span>
+                   </div>
+                   <div className="flex justify-between items-baseline pl-5">
+                     <span className="text-lg font-black text-white leading-none">{item.value}</span>
+                     <span className="text-xs font-bold text-slate-500">{pct}%</span>
+                   </div>
+                 </div>
+               );
+             })}
           </div>
         </div>
       </div>
@@ -519,13 +531,6 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
 };
 
 // Componentes Auxiliares
-
-const LegendItem: React.FC<{ color: string; label: string }> = ({ color, label }) => (
-  <div className="flex items-center gap-2">
-    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></div>
-    <span className="text-[10px] text-slate-400 font-bold uppercase">{label}</span>
-  </div>
-);
 
 const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: string; alignRight?: boolean }> = ({ title, data, color, icon, alignRight }) => (
   <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-md">
