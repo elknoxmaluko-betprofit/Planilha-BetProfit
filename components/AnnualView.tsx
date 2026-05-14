@@ -95,21 +95,40 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     let runningProfit = 0;
+    let runningPct = 0;
     
     const data = [
-      { name: 'Início', balance: 0 }
+      { name: 'Início', balance: 0, balancePct: 0, dateStr: '', betProfit: 0, betStake: 0, betProfitPct: 0 }
     ];
 
     sortedBets.forEach((bet, index) => {
       runningProfit += bet.profit;
+      
+      const betDate = new Date(bet.date);
+      const monthKey = `${betDate.getFullYear()}-${betDate.getMonth() + 1}`;
+      const betMonthStake = monthlyStakes[monthKey] || 0;
+      
+      let betProfitPct = 0;
+      if (betMonthStake > 0) {
+        betProfitPct = (bet.profit / betMonthStake) * 100;
+      }
+      runningPct += betProfitPct;
+
+      const dateStr = betDate.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      
       data.push({
         name: `Aposta ${index + 1}`,
-        balance: parseFloat(runningProfit.toFixed(2))
+        balance: parseFloat(runningProfit.toFixed(2)),
+        balancePct: parseFloat(runningPct.toFixed(2)),
+        dateStr: dateStr,
+        betProfit: bet.profit,
+        betStake: bet.stake,
+        betProfitPct: parseFloat(betProfitPct.toFixed(2))
       });
     });
 
     return data;
-  }, [bets]);
+  }, [bets, monthlyStakes]);
 
   const winLossDetailedData = React.useMemo(() => {
     const settled = bets.filter(b => b.status !== BetStatus.PENDING);
@@ -173,8 +192,8 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
   // Logic for Dynamic Chart Styling
   const gradientOffset = () => {
     if (annualEquityData.length === 0) return 0;
-    const dataMax = Math.max(...annualEquityData.map((i) => i.balance));
-    const dataMin = Math.min(...annualEquityData.map((i) => i.balance));
+    const dataMax = Math.max(...annualEquityData.map((i) => i.balancePct));
+    const dataMin = Math.min(...annualEquityData.map((i) => i.balancePct));
   
     if (dataMax <= 0) return 0;
     if (dataMin >= 0) return 1;
@@ -298,53 +317,88 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
         <div className="h-[200px] lg:h-[350px]">
           {annualEquityData.length > 1 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={annualEquityData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={annualEquityData} margin={{ top: 20, right: 20, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="splitColorAnnual" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset={off} stopColor="#34d399" stopOpacity={1} />
-                    <stop offset={off} stopColor="#f87171" stopOpacity={1} />
+                    <stop offset={off} stopColor="#10b981" stopOpacity={1} />
+                    <stop offset={off} stopColor="#ef4444" stopOpacity={1} />
                   </linearGradient>
                   <linearGradient id="splitFillAnnual" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset={off} stopColor="#34d399" stopOpacity={0.3} />
-                    <stop offset={off} stopColor="#f87171" stopOpacity={0.3} />
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.6} />
+                    <stop offset={off} stopColor="#10b981" stopOpacity={0.05} />
+                    <stop offset={off} stopColor="#ef4444" stopOpacity={0.05} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.5} />
                 <XAxis dataKey="name" hide />
                 <YAxis 
-                   stroke="#64748b" 
-                   fontSize={11} 
-                   fontWeight="bold"
+                   stroke="#475569" 
+                   fontSize={10} 
+                   fontWeight="600"
                    tickLine={false} 
                    axisLine={false} 
                    domain={['auto', 'auto']}
-                   tickFormatter={(value) => `${value}`} 
+                   tickFormatter={(value) => `${value > 0 ? '+' : ''}${value.toFixed(0)}%`} 
+                   width={40}
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: `1px solid ${annualStats.totalProfit >= 0 ? '#34d39940' : '#f8717140'}`, borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }} 
-                  labelStyle={{ color: '#94a3b8', marginBottom: '4px', fontWeight: 'bold' }}
-                  itemStyle={{ color: '#fff', fontWeight: 'bold' }}
-                  formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(2)}${currency}`, 'Lucro Acumulado']}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      const isPositiveBalance = data.balancePct >= 0;
+                      const isPositiveProfit = data.betProfitPct >= 0;
+                      
+                      return (
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                          <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2 gap-4">
+                            <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">{data.name}</span>
+                            {data.dateStr && (
+                              <span className="text-slate-500 font-bold text-[10px] bg-slate-800/50 px-2.5 py-1 rounded-lg">
+                                {data.dateStr}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center gap-6">
+                              <span className="text-slate-400 text-xs font-semibold">Saldo Acum.</span>
+                              <span className={`font-black text-lg ${isPositiveBalance ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {isPositiveBalance ? '+' : ''}{data.balancePct.toFixed(2)}%
+                              </span>
+                            </div>
+                            
+                            {data.name !== 'Início' && (
+                              <div className="flex justify-between items-center gap-6">
+                                <span className="text-slate-400 text-xs font-semibold">Res. Aposta</span>
+                                <span className={`font-black text-sm ${isPositiveProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {isPositiveProfit ? '+' : ''}{data.betProfitPct.toFixed(2)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                  cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area 
                   type="monotone" 
-                  dataKey="balance" 
+                  dataKey="balancePct" 
                   stroke="url(#splitColorAnnual)" 
                   strokeWidth={3} 
                   fillOpacity={1} 
                   fill="url(#splitFillAnnual)"
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    const isPositive = payload.balance >= 0;
-                    return (
-                      <circle cx={cx} cy={cy} r={4} stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2} fill="#0f172a" />
-                    );
-                  }}
                   activeDot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    const isPositive = payload.balance >= 0;
+                    const { cx, cy, payload, index } = props;
+                    const isPositive = payload.balancePct >= 0;
                     return (
-                      <circle cx={cx} cy={cy} r={6} stroke="#fff" strokeWidth={2} fill={isPositive ? "#34d399" : "#f87171"} />
+                      <g key={`active-dot-${index}`}>
+                        <circle cx={cx} cy={cy} r={8} fill={isPositive ? "#10b981" : "#ef4444"} fillOpacity={0.2} />
+                        <circle cx={cx} cy={cy} r={4} stroke="#0f172a" strokeWidth={2} fill={isPositive ? "#10b981" : "#ef4444"} />
+                      </g>
                     );
                   }}
                   animationDuration={1500}
