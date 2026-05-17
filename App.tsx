@@ -354,10 +354,13 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
       
       {/* Mobile/Tablet Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
-        <div className="flex items-center gap-2">
+        <button 
+          onClick={() => handleViewChange('dashboard')} 
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+        >
           <Logo size="sm" />
           <h1 className="text-xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
-        </div>
+        </button>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="text-slate-300 hover:text-white p-2"
@@ -381,10 +384,13 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         lg:translate-x-0 lg:static lg:h-screen lg:sticky lg:top-0 lg:shadow-none
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="hidden lg:flex items-center gap-3 mb-8">
+        <button 
+          onClick={() => handleViewChange('dashboard')} 
+          className="hidden lg:flex items-center gap-3 mb-8 hover:opacity-80 transition-opacity focus:outline-none"
+        >
           <Logo size="sm" />
           <h1 className="text-2xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
-        </div>
+        </button>
 
         <div className="space-y-2 overflow-y-auto flex-1 scrollbar-none">
           <button onClick={() => handleViewChange('dashboard')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'dashboard' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
