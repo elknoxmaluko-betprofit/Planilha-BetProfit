@@ -15,7 +15,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, selectedMonth, currency }) => {
   
   // Cálculos Auxiliares
-  const { htCount, ftCount, avgWin, avgLoss, avgWinPct, avgLossPct } = React.useMemo(() => {
+  const { htCount, ftCount, avgWin, avgLoss, avgWinPct, avgLossPct, bestGreenPct, worstRedPct } = React.useMemo(() => {
     const ht = bets.filter(b => b.market.toUpperCase().includes('FIRST HALF')).length;
     const ft = bets.length - ht;
 
@@ -39,13 +39,23 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       ? losingBets.reduce((acc, b) => acc + ((b.stake > 0 ? b.profit / b.stake : 0) * 100), 0) / losingBets.length
       : 0;
 
+    const bestGreenPctVal = winningBets.length > 0
+      ? Math.max(...winningBets.map(b => (b.stake > 0 ? (b.profit / b.stake) * 100 : 0)))
+      : 0;
+
+    const worstRedPctVal = losingBets.length > 0
+      ? Math.min(...losingBets.map(b => (b.stake > 0 ? (b.profit / b.stake) * 100 : 0)))
+      : 0;
+
     return { 
       htCount: ht, 
       ftCount: ft, 
       avgWin: avgWinVal, 
       avgLoss: avgLossVal,
       avgWinPct: avgWinPctVal,
-      avgLossPct: avgLossPctVal
+      avgLossPct: avgLossPctVal,
+      bestGreenPct: bestGreenPctVal,
+      worstRedPct: worstRedPctVal
     };
   }, [bets]);
 
@@ -256,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       </div>
 
       {/* Linha de Cartões Estatísticos (Movia para cima) */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         
         {/* Card 1: Mercados */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
@@ -331,6 +341,30 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
            </h4>
            <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
              Eficiência
+           </p>
+        </div>
+
+        {/* Card 7: Melhor Green */}
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-4">
+             <i className="fas fa-arrow-up"></i><i className="fas fa-arrow-up text-xs"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Melhor Green</p>
+           <h4 className="text-2xl font-black text-emerald-400 mb-2">+{bestGreenPct.toFixed(2)}%</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Máximo por aposta
+           </p>
+        </div>
+
+        {/* Card 8: Pior Red */}
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[1.5rem] hover:border-slate-700 transition-all">
+           <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-400 mb-4">
+             <i className="fas fa-arrow-down"></i><i className="fas fa-arrow-down text-xs"></i>
+           </div>
+           <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Pior Red</p>
+           <h4 className="text-2xl font-black text-red-400 mb-2">{worstRedPct.toFixed(2)}%</h4>
+           <p className="text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-800/50">
+             Pior por aposta
            </p>
         </div>
       </div>
