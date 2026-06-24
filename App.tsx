@@ -282,10 +282,12 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   const currentMonthlyBankroll = monthlyBankrolls[monthKey] || 0;
 
   const filteredBets = useMemo(() => {
-    return bets.filter(bet => {
-      const d = new Date(bet.date);
-      return d.getMonth() === selectedDate.month && d.getFullYear() === selectedDate.year;
-    });
+    return bets
+      .filter(bet => {
+        const d = new Date(bet.date);
+        return d.getMonth() === selectedDate.month && d.getFullYear() === selectedDate.year;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [bets, selectedDate]);
 
   const annualBets = useMemo(() => {
