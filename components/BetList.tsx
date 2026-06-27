@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { Bet, BetStatus, BetType } from '../types';
 import ConfirmModal from './ConfirmModal';
+import { TeamBadge } from './TeamsView';
 
 interface BetListProps {
   bets: Bet[];
@@ -60,8 +60,30 @@ const BetList: React.FC<BetListProps> = ({
               bets.map(bet => (
                 <tr key={bet.id} className="hover:bg-slate-800/30 transition-all group">
                   <td className="px-8 py-6">
-                    <div className="text-xs text-slate-500 font-black mb-1.5">{new Date(bet.date).toLocaleDateString('pt-PT')}</div>
-                    <div className="font-black text-white text-base">{bet.event}</div>
+                    <div className="text-xs text-slate-500 font-black mb-2">{new Date(bet.date).toLocaleDateString('pt-PT')}</div>
+                    {(() => {
+                      const match = bet.event.match(/^(.*?)\s+(?:v|vs\.?|x|-)\s+(.*?)$/i);
+                      if (match) {
+                        const home = match[1].trim();
+                        const away = match[2].trim();
+                        return (
+                          <div className="flex items-center justify-start gap-3 py-1 min-w-[220px]">
+                            <div className="flex-shrink-0">
+                              <TeamBadge teamName={home} size="sm" />
+                            </div>
+                            <div className="font-black text-white text-sm text-center px-2 leading-snug break-words">
+                              <span>{home}</span>
+                              <span className="text-slate-500 font-bold mx-2">v</span>
+                              <span>{away}</span>
+                            </div>
+                            <div className="flex-shrink-0">
+                              <TeamBadge teamName={away} size="sm" />
+                            </div>
+                          </div>
+                        );
+                      }
+                      return <div className="font-black text-white text-base">{bet.event}</div>;
+                    })()}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-2">
