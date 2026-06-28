@@ -8,7 +8,7 @@ interface TeamsViewProps {
   currency: string;
 }
 
-export const TeamBadge: React.FC<{ teamName: string; size?: 'sm' | 'md' }> = ({ teamName, size = 'md' }) => {
+export const TeamBadge: React.FC<{ teamName: string; size?: 'sm' | 'md'; editable?: boolean }> = ({ teamName, size = 'md', editable = true }) => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
@@ -101,7 +101,7 @@ export const TeamBadge: React.FC<{ teamName: string; size?: 'sm' | 'md' }> = ({ 
   };
 
   const renderContent = () => {
-    const boxSize = size === 'sm' ? 'w-9 h-9 rounded-xl' : 'w-16 h-16 rounded-2xl';
+    const boxSize = size === 'sm' ? 'w-9 h-9 rounded-xl' : 'w-20 h-20 rounded-2xl';
 
     if (loading) {
       return (
@@ -142,6 +142,10 @@ export const TeamBadge: React.FC<{ teamName: string; size?: 'sm' | 'md' }> = ({ 
       </div>
     );
   };
+
+  if (!editable) {
+    return renderContent();
+  }
 
   return (
     <>
@@ -238,7 +242,7 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency })
                    <TeamBadge teamName={name} />
                 </div>
                 
-                <div className="flex items-center gap-2 mb-4 pr-20">
+                <div className="flex items-center gap-2 mb-4 pr-24">
                   <span className="text-[10px] font-black text-slate-600 bg-slate-800 w-5 h-5 flex shrink-0 items-center justify-center rounded-full">
                     {idx + 1}
                   </span>

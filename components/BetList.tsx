@@ -69,15 +69,15 @@ const BetList: React.FC<BetListProps> = ({
                         return (
                           <div className="flex items-center justify-start gap-3 py-1 min-w-[220px]">
                             <div className="flex-shrink-0">
-                              <TeamBadge teamName={home} size="sm" />
+                              <TeamBadge teamName={home} size="sm" editable={false} />
                             </div>
-                            <div className="font-black text-white text-sm text-center px-2 leading-snug break-words">
+                            <div className="font-black text-white text-base md:text-lg text-center px-2 leading-snug break-words">
                               <span>{home}</span>
                               <span className="text-slate-500 font-bold mx-2">v</span>
                               <span>{away}</span>
                             </div>
                             <div className="flex-shrink-0">
-                              <TeamBadge teamName={away} size="sm" />
+                              <TeamBadge teamName={away} size="sm" editable={false} />
                             </div>
                           </div>
                         );

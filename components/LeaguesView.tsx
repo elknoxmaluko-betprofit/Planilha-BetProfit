@@ -171,7 +171,7 @@ const LeagueBadge: React.FC<{ leagueName: string }> = ({ leagueName }) => {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="w-16 h-16 rounded-2xl bg-slate-800/80 animate-pulse border border-slate-700/50 flex items-center justify-center shadow-inner">
+        <div className="w-20 h-20 rounded-2xl bg-slate-800/80 animate-pulse border border-slate-700/50 flex items-center justify-center shadow-inner">
           <i className="fas fa-circle-notch fa-spin text-slate-600 text-lg"></i>
         </div>
       );
@@ -189,7 +189,7 @@ const LeagueBadge: React.FC<{ leagueName: string }> = ({ leagueName }) => {
       }
 
       return (
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/80 flex flex-col items-center justify-center text-slate-400 shadow-md group-hover/badge:border-slate-500 transition-colors">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/80 flex flex-col items-center justify-center text-slate-400 shadow-md group-hover/badge:border-slate-500 transition-colors">
           <i className="fas fa-trophy text-xl text-yellow-500/80 mb-1"></i>
           <span className="text-xs font-black tracking-tighter text-slate-300 leading-none">{initials}</span>
         </div>
@@ -197,7 +197,7 @@ const LeagueBadge: React.FC<{ leagueName: string }> = ({ leagueName }) => {
     }
 
     return (
-      <div className="w-16 h-16 rounded-2xl bg-slate-900/80 border border-slate-700/60 p-2 flex items-center justify-center shadow-md overflow-hidden group-hover/badge:border-slate-500 transition-all">
+      <div className="w-20 h-20 rounded-2xl bg-slate-900/80 border border-slate-700/60 p-2 flex items-center justify-center shadow-md overflow-hidden group-hover/badge:border-slate-500 transition-all">
         <img 
           src={logoUrl} 
           alt={leagueName} 
@@ -315,7 +315,7 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
               </div>
               <button onClick={() => setDeletingName(name)} className="absolute top-2 right-2 bg-slate-900/90 hover:bg-red-500 hover:text-white text-slate-400 rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-20 shadow"><i className="fas fa-times text-xs"></i></button>
               
-              <div className="flex items-center justify-between mb-4 relative z-10 w-full pr-20">
+              <div className="flex items-center justify-between mb-4 relative z-10 w-full pr-24">
                 <div className="flex items-center gap-2 w-full">
                   <span className="text-[10px] font-black text-slate-600 bg-slate-800 w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0">
                     {idx + 1}
