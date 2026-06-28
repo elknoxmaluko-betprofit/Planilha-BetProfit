@@ -2,5 +2,5 @@
   "name": "BetProfit",
   "description": "Uma folha de cálculo desportiva profissional e painel de análise. Monitorize apostas Back/Lay, controle P/L e obtenha estatísticas detalhadas sobre a sua performance.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
