@@ -38,28 +38,28 @@ const BetList: React.FC<BetListProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-      <div className="overflow-x-auto rounded-[2.5rem]">
+    <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] shadow-2xl relative">
+      <div className={`rounded-[2.5rem] transition-all duration-300 ${openTagMenuId ? 'overflow-visible pb-64 md:pb-0' : 'overflow-x-auto'} md:overflow-visible`}>
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-900/80 border-b border-slate-800">
-              <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase tracking-[0.2em]">Operação</th>
+              <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase tracking-[0.2em] rounded-tl-[2.5rem]">Operação</th>
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase tracking-[0.2em]">Mercado / Camp.</th>
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase tracking-[0.2em]">Método / Tags</th>
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-center tracking-[0.2em]">Stake</th>
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-right tracking-[0.2em]">P/L</th>
-              <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-right tracking-[0.2em]">Ações</th>
+              <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-right tracking-[0.2em] rounded-tr-[2.5rem]">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50">
             {bets.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-8 py-28 text-center text-slate-500 italic text-lg">Sem registos para mostrar neste período.</td>
+                <td colSpan={6} className="px-8 py-28 text-center text-slate-500 italic text-lg rounded-b-[2.5rem]">Sem registos para mostrar neste período.</td>
               </tr>
             ) : (
-              bets.map(bet => (
+              bets.map((bet, index) => (
                 <tr key={bet.id} className="hover:bg-slate-800/30 transition-all group">
-                  <td className="px-8 py-6">
+                  <td className={`px-8 py-6 ${index === bets.length - 1 ? 'rounded-bl-[2.5rem]' : ''}`}>
                     <div className="text-xs text-slate-500 font-black mb-2">{new Date(bet.date).toLocaleDateString('pt-PT')}</div>
                     {(() => {
                       const match = bet.event.match(/^(.*?)\s+(?:v|vs\.?|x|-)\s+(.*?)$/i);
@@ -159,7 +159,7 @@ const BetList: React.FC<BetListProps> = ({
                     <div className="text-xl">{bet.profit > 0 ? '+' : ''}{bet.profit.toFixed(2)}{currency}</div>
                     <div className="text-xs opacity-70 mt-1">{bet.profitPercentage.toFixed(1)}% Yield</div>
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className={`px-8 py-6 text-right ${index === bets.length - 1 ? 'rounded-br-[2.5rem]' : ''}`}>
                     <button onClick={() => setDeletingId(bet.id)} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
