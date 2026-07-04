@@ -71,6 +71,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   });
   const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data'>('dashboard');
   const [showCSVModal, setShowCSVModal] = useState(false);
+  const [editingBetId, setEditingBetId] = useState<string | null>(null);
 
   // --- HELPER FUNCTIONS ---
 
@@ -159,7 +160,13 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         }
     }
 
-    setBets(prev => [betToSave, ...prev]);
+    if (editingBetId) {
+      setBets(prev => prev.map(b => b.id === bet.id ? betToSave : b));
+    } else {
+      setBets(prev => [betToSave, ...prev]);
+    }
+    
+    setEditingBetId(null);
     setView('bets');
   };
 
@@ -517,7 +524,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
 
         {view === 'dashboard' && <Dashboard stats={stats} bets={filteredBets} allBets={bets} selectedYear={selectedDate.year} selectedMonth={selectedDate.month} currency={currency} />}
         {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} currency={currency} />}
-        {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
+        {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onEdit={(id) => { setEditingBetId(id); setView('add'); }} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
         {view === 'markets' && <MarketsView bets={filteredBets} currency={currency} />}
         {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} onEdit={(oldName, newName) => handleRenameListItem('leagues', oldName, newName)} currency={currency} />}
         {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
@@ -525,7 +532,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
         {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} availableTags={tagsList} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects, currency }} onDataImport={handleDataImport} />}
-        {view === 'add' && <BetForm onAdd={addBet} onCancel={() => setView('dashboard')} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} />}
+        {view === 'add' && <BetForm onAdd={addBet} onCancel={() => { setView('dashboard'); setEditingBetId(null); }} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} initialBet={bets.find(b => b.id === editingBetId)} />}
 
         {showCSVModal && <CSVImporter onImport={async (newBets) => { 
             const betsWithProjects = newBets.map(b => {

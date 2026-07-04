@@ -12,28 +12,29 @@ interface BetFormProps {
   teams: string[];
   projects: Project[];
   currency: string;
+  initialBet?: Bet;
 }
 
-const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, methodologies, tags, leagues, teams, projects, currency }) => {
+const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, methodologies, tags, leagues, teams, projects, currency, initialBet }) => {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    event: '',
-    market: '',
-    type: BetType.BACK,
-    stake: monthlyStake,
-    profit: 0,
-    methodology: methodologies[0] || '',
-    league: leagues[0] || '',
-    team: '',
-    projectId: '',
-    selectedTags: [] as string[]
+    date: initialBet?.date || new Date().toISOString().split('T')[0],
+    event: initialBet?.event || '',
+    market: initialBet?.market || '',
+    type: initialBet?.type || BetType.BACK,
+    stake: initialBet ? initialBet.stake : monthlyStake,
+    profit: initialBet ? initialBet.profit : 0,
+    methodology: initialBet?.methodology || methodologies[0] || '',
+    league: initialBet?.league || leagues[0] || '',
+    team: initialBet?.team || '',
+    projectId: initialBet?.projectId || '',
+    selectedTags: initialBet?.tags || ([] as string[])
   });
 
   useEffect(() => {
-    if (monthlyStake > 0) {
+    if (monthlyStake > 0 && !initialBet) {
       setFormData(prev => ({ ...prev, stake: monthlyStake }));
     }
-  }, [monthlyStake]);
+  }, [monthlyStake, initialBet]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,22 +47,23 @@ const BetForm: React.FC<BetFormProps> = ({ onAdd, onCancel, monthlyStake, method
     const profitPercentage = formData.stake > 0 ? (formData.profit / formData.stake) * 100 : 0;
 
     const newBet: Bet = {
-      id: crypto.randomUUID(),
+      id: initialBet?.id || crypto.randomUUID(),
       date: formData.date,
       event: formData.event,
       market: formData.market,
       type: formData.type,
       stake: formData.stake,
       profit: formData.profit,
-      odds: 0,
-      stakePercentage: 0,
+      odds: initialBet?.odds || 0,
+      stakePercentage: initialBet?.stakePercentage || 0,
       profitPercentage: profitPercentage,
       status,
       methodology: formData.methodology,
       league: formData.league,
       team: formData.team,
       projectId: formData.projectId || undefined,
-      tags: formData.selectedTags
+      tags: formData.selectedTags,
+      dezenaIndex: initialBet?.dezenaIndex
     };
 
     onAdd(newBet);

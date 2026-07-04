@@ -6,6 +6,7 @@ import { TeamBadge } from './TeamsView';
 interface BetListProps {
   bets: Bet[];
   onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
   onUpdateBet: (id: string, updates: Partial<Bet>) => void;
   monthlyStake: number;
   availableMethodologies: string[];
@@ -18,6 +19,7 @@ interface BetListProps {
 const BetList: React.FC<BetListProps> = ({ 
   bets, 
   onDelete, 
+  onEdit,
   onUpdateBet, 
   monthlyStake, 
   availableMethodologies, 
@@ -160,7 +162,10 @@ const BetList: React.FC<BetListProps> = ({
                     <div className="text-xs opacity-70 mt-1">{bet.profitPercentage.toFixed(1)}% Yield</div>
                   </td>
                   <td className={`px-8 py-6 text-right ${index === bets.length - 1 ? 'rounded-br-[2.5rem]' : ''}`}>
-                    <button onClick={() => setDeletingId(bet.id)} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
+                    <div className="flex justify-end items-center gap-2">
+                      <button onClick={() => onEdit(bet.id)} className="text-slate-700 hover:text-yellow-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-pen"></i></button>
+                      <button onClick={() => setDeletingId(bet.id)} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
+                    </div>
                   </td>
                 </tr>
               ))
