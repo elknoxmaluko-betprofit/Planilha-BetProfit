@@ -2,6 +2,7 @@ import React from 'react';
 import { Stats, Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import Logo from './Logo';
+import html2canvas from 'html2canvas';
 
 interface DashboardProps {
   stats: Stats;
@@ -222,9 +223,56 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
   
   const off = gradientOffset();
 
+  const reportRef = React.useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = React.useState(false);
+
+  const monthsStr = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+
+  const handleExportImage = async () => {
+    if (!reportRef.current) return;
+    setIsExporting(true);
+    try {
+      // Pequeno delay para garantir que a DOM atualizou se necessário
+      await new Promise(r => setTimeout(r, 100));
+      const canvas = await html2canvas(reportRef.current, {
+        backgroundColor: '#020617', // tailwind slate-950
+        scale: 2, // higher resolution
+        useCORS: true,
+        logging: false
+      });
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `relatorio_${selectedYear}_${monthsStr[selectedMonth].toLowerCase()}.png`;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to generate image:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900/50 p-4 rounded-3xl border border-slate-800 gap-4">
+         <div>
+             <h2 className="text-white font-bold text-lg px-2 flex items-center gap-2">
+                 <i className="fas fa-camera text-blue-400"></i> Relatório Mensal
+             </h2>
+             <p className="text-slate-500 text-xs px-2 mt-1">Gere um card resumo com estatísticas deste mês para partilhar nas redes sociais.</p>
+         </div>
+         <button onClick={handleExportImage} disabled={isExporting} className="w-full sm:w-auto bg-blue-500/10 text-blue-400 border border-blue-500/20 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+            {isExporting ? <i className="fas fa-circle-notch fa-spin text-sm"></i> : <i className="fas fa-image text-sm"></i>}
+            {isExporting ? 'A Gerar...' : 'Gerar Card'}
+         </button>
+      </div>
+
       {/* Secção de Topo - Layout Original Restaurado */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Card Banca Total - Grande à Esquerda */}
@@ -605,6 +653,68 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
         <RankingCard title="Melhores Ligas" data={leaguePerformanceData.winners} color="#10b981" icon="fa-medal" />
         <RankingCard title="Piores Ligas" data={leaguePerformanceData.losers} color="#ef4444" icon="fa-exclamation-triangle" alignRight />
       </div>
+
+      {/* Hidden Report Card for Export */}
+      <div className="absolute top-[-9999px] left-[-9999px]">
+        <div ref={reportRef} className="w-[1080px] h-[1080px] bg-[#020617] text-white p-16 flex flex-col relative" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[50%] bg-emerald-500/20 blur-[120px] rounded-full"></div>
+          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-500/10 blur-[100px] rounded-full"></div>
+          
+          <div className="flex justify-between items-center z-10 border-b border-slate-800 pb-8">
+             <div>
+                <h1 className="text-6xl font-black tracking-tighter text-white mb-2">Relatório Mensal</h1>
+                <p className="text-3xl text-emerald-400 font-bold uppercase tracking-widest">{monthsStr[selectedMonth]} {selectedYear}</p>
+             </div>
+             <div className="flex items-center justify-center gap-6 bg-slate-900/80 px-8 py-5 rounded-full border border-slate-700/50 shadow-2xl backdrop-blur-sm">
+                 <Logo size="sm" className="scale-150 transform origin-center" />
+                 <span className="text-4xl font-black tracking-tighter text-white">BetProfit</span>
+             </div>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-center gap-12 z-10 mt-12">
+              <div className="grid grid-cols-2 gap-8">
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-2xl">
+                      <span className="text-2xl text-slate-400 font-bold uppercase tracking-widest mb-4">Lucro Líquido</span>
+                      <span className={`text-8xl font-black tracking-tighter ${stats.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                         {stats.totalProfit >= 0 ? '+' : ''}{stats.totalProfit.toFixed(2)} {currency}
+                      </span>
+                  </div>
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-2xl">
+                      <span className="text-2xl text-slate-400 font-bold uppercase tracking-widest mb-4">Yield (ROI)</span>
+                      <span className={`text-8xl font-black tracking-tighter ${stats.roi >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                         {stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(2)}%
+                      </span>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-8">
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-8 flex flex-col items-center justify-center">
+                      <i className="fas fa-bullseye text-4xl text-blue-400 mb-4"></i>
+                      <span className="text-6xl font-black text-white">{stats.winRate.toFixed(1)}%</span>
+                      <span className="text-lg text-slate-400 font-bold uppercase tracking-wider mt-4">Taxa Acerto</span>
+                  </div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-8 flex flex-col items-center justify-center">
+                      <i className="fas fa-ticket-alt text-4xl text-purple-400 mb-4"></i>
+                      <span className="text-6xl font-black text-white">{bets.length}</span>
+                      <span className="text-lg text-slate-400 font-bold uppercase tracking-wider mt-4">Total Entradas</span>
+                  </div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-8 flex flex-col items-center justify-center">
+                      <i className="fas fa-coins text-4xl text-yellow-400 mb-4"></i>
+                      <span className={`text-6xl font-black ${stats.profitInStakes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                         {stats.profitInStakes >= 0 ? '+' : ''}{stats.profitInStakes.toFixed(2)}
+                      </span>
+                      <span className="text-lg text-slate-400 font-bold uppercase tracking-wider mt-4">Stakes</span>
+                  </div>
+              </div>
+          </div>
+          
+          <div className="mt-auto pt-8 border-t border-slate-800 z-10 text-center flex justify-between items-center px-4">
+              <span className="text-xl text-slate-500 font-black tracking-widest uppercase">Gerado com BetProfit</span>
+              <span className="text-xl text-slate-600 font-bold">Gestão de Banca Profissional</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 };
