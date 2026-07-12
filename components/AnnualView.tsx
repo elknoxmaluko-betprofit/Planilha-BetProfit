@@ -208,6 +208,15 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
   const reportRef = React.useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = React.useState(false);
 
+  const melhorGreen = yearBets.reduce((max, b) => {
+    const pct = b.stake > 0 ? (b.profit / b.stake) * 100 : 0;
+    return pct > max ? pct : max;
+  }, 0);
+  const piorRed = yearBets.reduce((min, b) => {
+    const pct = b.stake > 0 ? (b.profit / b.stake) * 100 : 0;
+    return pct < min ? pct : min;
+  }, 0);
+
   const handleExportAnnualImage = async () => {
     if (!reportRef.current) return;
     setIsExporting(true);
@@ -482,9 +491,9 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
           <div className="flex-1 flex flex-col justify-center gap-12 z-10 mt-12">
               <div className="grid grid-cols-2 gap-8">
                   <div className="bg-slate-900/80 border border-slate-800 rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-2xl">
-                      <span className="text-2xl text-slate-400 font-bold uppercase tracking-widest mb-4">Lucro Líquido Anual</span>
-                      <span className={`text-8xl font-black tracking-tighter ${annualStats.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                         {annualStats.totalProfit >= 0 ? '+' : ''}{annualStats.totalProfit.toFixed(2)} {currency}
+                      <span className="text-2xl text-slate-400 font-bold uppercase tracking-widest mb-4">Lucro em Stakes (Anual)</span>
+                      <span className={`text-8xl font-black tracking-tighter ${annualStats.profitInStakes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                         {annualStats.profitInStakes >= 0 ? '+' : ''}{annualStats.profitInStakes.toFixed(2)}
                       </span>
                   </div>
                   <div className="bg-slate-900/80 border border-slate-800 rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-2xl">
@@ -495,25 +504,28 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
                   </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-8">
-                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-8 flex flex-col items-center justify-center">
+              <div className="grid grid-cols-4 gap-6">
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
                       <i className="fas fa-bullseye text-4xl text-blue-400 mb-4"></i>
-                      <span className="text-6xl font-black text-white">
+                      <span className="text-5xl font-black text-white">
                          {annualStats.totalBets > 0 ? ((bets.filter(b => b.status === BetStatus.WON).length / annualStats.totalBets) * 100).toFixed(1) : 0}%
                       </span>
-                      <span className="text-lg text-slate-400 font-bold uppercase tracking-wider mt-4">Taxa Acerto</span>
+                      <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Taxa Acerto</span>
                   </div>
-                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-8 flex flex-col items-center justify-center">
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
                       <i className="fas fa-ticket-alt text-4xl text-purple-400 mb-4"></i>
-                      <span className="text-6xl font-black text-white">{annualStats.totalBets}</span>
-                      <span className="text-lg text-slate-400 font-bold uppercase tracking-wider mt-4">Total Entradas</span>
+                      <span className="text-5xl font-black text-white">{annualStats.totalBets}</span>
+                      <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Total Entradas</span>
                   </div>
-                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-8 flex flex-col items-center justify-center">
-                      <i className="fas fa-calendar-check text-4xl text-emerald-400 mb-4"></i>
-                      <span className="text-6xl font-black text-white">
-                         {annualEquityData.filter(d => d.betProfitPct > 0).length}
-                      </span>
-                      <span className="text-lg text-slate-400 font-bold uppercase tracking-wider mt-4">Meses Positivos</span>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
+                      <i className="fas fa-arrow-trend-up text-4xl text-emerald-400 mb-4"></i>
+                      <span className="text-4xl font-black text-emerald-400">+{melhorGreen.toFixed(1)}%</span>
+                      <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-4">Melhor Green</span>
+                  </div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
+                      <i className="fas fa-arrow-trend-down text-4xl text-red-400 mb-4"></i>
+                      <span className="text-4xl font-black text-red-400">{piorRed.toFixed(1)}%</span>
+                      <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-4">Pior Red</span>
                   </div>
               </div>
           </div>
