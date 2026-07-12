@@ -28,7 +28,8 @@ const BetList: React.FC<BetListProps> = ({
   availableTeams = [] ,
   currency
 }) => {
-  const [openTagMenuId, setOpenTagMenuId] = useState<string | null>(null);
+type MenuType = 'league' | 'methodology' | 'tags';
+  const [openMenu, setOpenMenu] = useState<{ id: string, type: MenuType } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleToggleTag = (bet: Bet, tag: string) => {
@@ -41,7 +42,7 @@ const BetList: React.FC<BetListProps> = ({
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] shadow-2xl relative">
-      <div className={`rounded-[2.5rem] transition-all duration-300 ${openTagMenuId ? 'overflow-visible pb-64 md:pb-0' : 'overflow-x-auto'} md:overflow-visible`}>
+      <div className={`rounded-[2.5rem] transition-all duration-300 ${openMenu ? 'overflow-visible pb-64 md:pb-0' : 'overflow-x-auto'} md:overflow-visible`}>
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-900/80 border-b border-slate-800">
@@ -90,30 +91,77 @@ const BetList: React.FC<BetListProps> = ({
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-2">
                       <span className="text-xs text-slate-400 bg-slate-800 self-start px-3 py-1 rounded-lg border border-slate-700 font-bold">{bet.market}</span>
-                      <select 
-                        className="bg-slate-800/50 text-xs text-blue-400 font-black uppercase outline-none border border-slate-700/50 px-3 py-1 rounded-lg cursor-pointer hover:border-blue-400/50 transition-all appearance-none"
-                        value={bet.league || ''}
-                        onChange={(e) => onUpdateBet(bet.id, { league: e.target.value })}
-                      >
-                        <option value="">Sem Campeonato</option>
-                        {availableLeagues.map(l => (
-                          <option key={l} value={l} className="bg-slate-900 text-white">{l}</option>
-                        ))}
-                      </select>
+                      
+                      <div className="relative">
+                        <button 
+                          onClick={() => setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'league' ? null : { id: bet.id, type: 'league' })}
+                          className="bg-slate-800/50 text-xs text-blue-400 font-black uppercase outline-none border border-slate-700/50 px-3 py-1.5 rounded-lg cursor-pointer hover:border-blue-400/50 transition-all flex items-center gap-2 max-w-[200px]"
+                        >
+                          <span className="truncate">{bet.league || 'Sem Campeonato'}</span>
+                          <i className={`fas fa-chevron-down text-[10px] opacity-50 transition-transform ${openMenu?.id === bet.id && openMenu.type === 'league' ? 'rotate-180' : ''}`}></i>
+                        </button>
+                        {openMenu?.id === bet.id && openMenu.type === 'league' && (
+                          <div className="absolute z-50 left-0 mt-2 min-w-[280px] w-max max-w-[350px] md:max-w-[450px] bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1">Selecionar Campeonato</div>
+                            <div className="max-h-72 overflow-y-auto flex flex-wrap gap-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
+                              <button
+                                onClick={() => { onUpdateBet(bet.id, { league: '' }); setOpenMenu(null); }}
+                                className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap ${!bet.league ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
+                              >
+                                Sem Campeonato
+                              </button>
+                              {availableLeagues.map(l => (
+                                <button
+                                  key={l}
+                                  onClick={() => { onUpdateBet(bet.id, { league: l }); setOpenMenu(null); }}
+                                  className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap flex items-center gap-1 ${bet.league === l ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
+                                >
+                                  {l}
+                                  {bet.league === l && <i className="fas fa-check ml-1 text-[9px]"></i>}
+                                </button>
+                              ))}
+                            </div>
+                            <button onClick={() => setOpenMenu(null)} className="w-full mt-3 pt-2 border-t border-slate-800/50 text-xs font-black text-slate-500 hover:text-white text-center transition-colors pb-1">Fechar</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-2.5">
-                      <select 
-                        className="bg-slate-800/50 text-xs text-yellow-400 font-black uppercase outline-none border border-slate-700/50 px-3 py-1 rounded-lg cursor-pointer hover:border-yellow-400/50 transition-all appearance-none self-start"
-                        value={bet.methodology || ''}
-                        onChange={(e) => onUpdateBet(bet.id, { methodology: e.target.value })}
-                      >
-                        <option value="">Sem Método</option>
-                        {availableMethodologies.map(m => (
-                          <option key={m} value={m} className="bg-slate-900 text-white">{m}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'methodology' ? null : { id: bet.id, type: 'methodology' })}
+                          className="bg-slate-800/50 text-xs text-yellow-400 font-black uppercase outline-none border border-slate-700/50 px-3 py-1.5 rounded-lg cursor-pointer hover:border-yellow-400/50 transition-all flex items-center gap-2 max-w-[200px]"
+                        >
+                          <span className="truncate">{bet.methodology || 'Sem Método'}</span>
+                          <i className={`fas fa-chevron-down text-[10px] opacity-50 transition-transform ${openMenu?.id === bet.id && openMenu.type === 'methodology' ? 'rotate-180' : ''}`}></i>
+                        </button>
+                        {openMenu?.id === bet.id && openMenu.type === 'methodology' && (
+                          <div className="absolute z-50 left-0 mt-2 min-w-[280px] w-max max-w-[350px] md:max-w-[450px] bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1">Selecionar Método</div>
+                            <div className="max-h-72 overflow-y-auto flex flex-wrap gap-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
+                              <button
+                                onClick={() => { onUpdateBet(bet.id, { methodology: '' }); setOpenMenu(null); }}
+                                className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap ${!bet.methodology ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
+                              >
+                                Sem Método
+                              </button>
+                              {availableMethodologies.map(m => (
+                                <button
+                                  key={m}
+                                  onClick={() => { onUpdateBet(bet.id, { methodology: m }); setOpenMenu(null); }}
+                                  className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap flex items-center gap-1 ${bet.methodology === m ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
+                                >
+                                  {m}
+                                  {bet.methodology === m && <i className="fas fa-check ml-1 text-[9px]"></i>}
+                                </button>
+                              ))}
+                            </div>
+                            <button onClick={() => setOpenMenu(null)} className="w-full mt-3 pt-2 border-t border-slate-800/50 text-xs font-black text-slate-500 hover:text-white text-center transition-colors pb-1">Fechar</button>
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="relative">
                         <div className="flex flex-wrap gap-1.5 items-center">
@@ -124,30 +172,30 @@ const BetList: React.FC<BetListProps> = ({
                             </span>
                           ))}
                           <button 
-                            onClick={() => setOpenTagMenuId(openTagMenuId === bet.id ? null : bet.id)}
-                            className="text-[11px] bg-slate-800 text-slate-500 hover:text-white border border-slate-700 px-2 py-1 rounded-lg transition-all font-black"
+                            onClick={() => setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'tags' ? null : { id: bet.id, type: 'tags' })}
+                            className="text-[11px] bg-slate-800 text-slate-500 hover:text-white border border-slate-700 px-2 py-1 rounded-lg transition-all font-black flex items-center gap-1"
                           >
-                            <i className="fas fa-plus mr-1"></i> Tag
+                            <i className="fas fa-plus"></i> Tag
                           </button>
                         </div>
 
-                        {openTagMenuId === bet.id && (
-                          <div className="absolute z-20 left-0 mt-3 w-56 bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="text-[11px] font-black text-slate-500 uppercase px-3 mb-3 tracking-widest">Selecionar Tags</div>
-                            <div className="max-h-48 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
+                        {openMenu?.id === bet.id && openMenu.type === 'tags' && (
+                          <div className="absolute z-50 left-0 mt-2 min-w-[280px] w-max max-w-[350px] md:max-w-[450px] bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1">Selecionar Tags</div>
+                            <div className="max-h-72 overflow-y-auto flex flex-wrap gap-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
                               {availableTags.map(tag => (
                                 <button
                                   key={tag}
                                   onClick={() => handleToggleTag(bet, tag)}
-                                  className={`w-full text-left text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-between font-bold ${bet.tags?.includes(tag) ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                                  className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap flex items-center gap-1 ${bet.tags?.includes(tag) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
                                 >
                                   #{tag}
-                                  {bet.tags?.includes(tag) && <i className="fas fa-check"></i>}
+                                  {bet.tags?.includes(tag) && <i className="fas fa-check ml-1 text-[9px]"></i>}
                                 </button>
                               ))}
-                              {availableTags.length === 0 && <div className="text-xs text-slate-600 px-3 italic">Crie tags primeiro.</div>}
+                              {availableTags.length === 0 && <div className="text-xs text-slate-600 px-1 py-1 italic">Crie tags primeiro.</div>}
                             </div>
-                            <button onClick={() => setOpenTagMenuId(null)} className="w-full mt-3 pt-3 border-t border-slate-800 text-xs font-black text-slate-500 hover:text-white text-center transition-colors">Fechar</button>
+                            <button onClick={() => setOpenMenu(null)} className="w-full mt-3 pt-2 border-t border-slate-800/50 text-xs font-black text-slate-500 hover:text-white text-center transition-colors pb-1">Fechar</button>
                           </div>
                         )}
                       </div>
@@ -173,8 +221,8 @@ const BetList: React.FC<BetListProps> = ({
           </tbody>
         </table>
       </div>
-      {openTagMenuId && (
-        <div className="fixed inset-0 z-10" onClick={() => setOpenTagMenuId(null)}></div>
+      {openMenu && (
+        <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)}></div>
       )}
       
       <ConfirmModal
