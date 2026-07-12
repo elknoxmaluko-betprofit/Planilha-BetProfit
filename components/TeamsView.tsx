@@ -184,7 +184,8 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency })
       
       // Para cada equipa, procuramos apostas que envolvam o seu nome no evento ou campo team
       bets.forEach(bet => {
-        const isInEvent = bet.event.toLowerCase().includes(teamName.toLowerCase());
+        const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i).map(p => p.trim().toLowerCase());
+        const isInEvent = parts.includes(teamName.toLowerCase());
         const isSelectedTeam = bet.team === teamName;
 
         if (isInEvent || isSelectedTeam) {
