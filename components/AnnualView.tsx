@@ -208,11 +208,11 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
   const reportRef = React.useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = React.useState(false);
 
-  const melhorGreen = yearBets.reduce((max, b) => {
+  const melhorGreen = bets.reduce((max, b) => {
     const pct = b.stake > 0 ? (b.profit / b.stake) * 100 : 0;
     return pct > max ? pct : max;
   }, 0);
-  const piorRed = yearBets.reduce((min, b) => {
+  const piorRed = bets.reduce((min, b) => {
     const pct = b.stake > 0 ? (b.profit / b.stake) * 100 : 0;
     return pct < min ? pct : min;
   }, 0);
