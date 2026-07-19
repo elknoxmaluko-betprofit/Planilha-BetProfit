@@ -14,8 +14,8 @@ interface AnnualViewProps {
 
 const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBankrolls, monthlyStakes, currency }) => {
   const months = [
-    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
   const { annualStats, htCount, ftCount, totalGains, totalLosses, avgWin, avgLoss, avgWinPct, avgLossPct } = React.useMemo(() => {
@@ -85,12 +85,20 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
     return months.map((name, index) => {
       const monthBets = bets.filter(b => new Date(b.date).getMonth() === index);
       const profit = monthBets.reduce((acc, b) => acc + b.profit, 0);
+      
+      const monthKey = `${selectedYear}-${index}`;
+      const betMonthStake = monthlyStakes[monthKey] || monthBets.reduce((acc, b) => acc + b.stake, 0);
+      let profitPct = 0;
+      if (betMonthStake > 0) {
+        profitPct = (profit / betMonthStake) * 100;
+      }
+
       return {
         name,
-        profit: parseFloat(profit.toFixed(2))
+        profit: parseFloat(profitPct.toFixed(2))
       };
     });
-  }, [bets]);
+  }, [bets, selectedYear, monthlyStakes]);
 
   const annualEquityData = React.useMemo(() => {
     if (bets.length === 0) return [];
@@ -316,15 +324,15 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-3xl lg:rounded-[2.5rem] p-5 lg:p-8">
-          <h3 className="text-lg lg:text-xl font-bold text-white mb-6 lg:mb-8">Performance Mensal ({currency})</h3>
+          <h3 className="text-lg lg:text-xl font-bold text-white mb-6 lg:mb-8">Performance Mensal (%)</h3>
           <div className="h-[200px] lg:h-[350px]">
             {bets.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: '#1e293b', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', fontSize: '12px' }} itemStyle={{ color: '#fff' }} />
+                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />
+                  <Tooltip formatter={(value: number) => [`${value}%`, 'Profit']} cursor={{ fill: '#1e293b', opacity: 0.4 }} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', fontSize: '12px' }} itemStyle={{ color: '#fff' }} />
                   <Bar dataKey="profit" radius={[4, 4, 0, 0]}>
                     {monthlyData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />)}
                   </Bar>

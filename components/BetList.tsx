@@ -31,6 +31,7 @@ const BetList: React.FC<BetListProps> = ({
 type MenuType = 'league' | 'methodology' | 'tags';
   const [openMenu, setOpenMenu] = useState<{ id: string, type: MenuType } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleToggleTag = (bet: Bet, tag: string) => {
     const currentTags = bet.tags || [];
@@ -94,7 +95,10 @@ type MenuType = 'league' | 'methodology' | 'tags';
                       
                       <div className="relative">
                         <button 
-                          onClick={() => setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'league' ? null : { id: bet.id, type: 'league' })}
+                          onClick={() => {
+                            setSearchQuery('');
+                            setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'league' ? null : { id: bet.id, type: 'league' });
+                          }}
                           className="bg-slate-800/50 text-xs text-blue-400 font-black uppercase outline-none border border-slate-700/50 px-3 py-1.5 rounded-lg cursor-pointer hover:border-blue-400/50 transition-all flex items-center gap-2 max-w-[200px]"
                         >
                           <span className="truncate">{bet.league || 'Sem Campeonato'}</span>
@@ -102,15 +106,24 @@ type MenuType = 'league' | 'methodology' | 'tags';
                         </button>
                         {openMenu?.id === bet.id && openMenu.type === 'league' && (
                           <div className="absolute z-50 left-0 mt-2 min-w-[280px] w-max max-w-[350px] md:max-w-[450px] bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1">Selecionar Campeonato</div>
+                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1 flex justify-between items-center">
+                              Selecionar Campeonato
+                            </div>
+                            <div className="px-1 mb-3">
+                              <div className="relative">
+                                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input
+                                  type="text"
+                                  placeholder="Pesquisar..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white outline-none focus:border-blue-500 transition-colors"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
                             <div className="max-h-72 overflow-y-auto flex flex-wrap gap-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
-                              <button
-                                onClick={() => { onUpdateBet(bet.id, { league: '' }); setOpenMenu(null); }}
-                                className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap ${!bet.league ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
-                              >
-                                Sem Campeonato
-                              </button>
-                              {availableLeagues.map(l => (
+                              {availableLeagues.filter(l => l.toLowerCase().includes(searchQuery.toLowerCase())).map(l => (
                                 <button
                                   key={l}
                                   onClick={() => { onUpdateBet(bet.id, { league: l }); setOpenMenu(null); }}
@@ -131,7 +144,10 @@ type MenuType = 'league' | 'methodology' | 'tags';
                     <div className="flex flex-col gap-2.5">
                       <div className="relative">
                         <button 
-                          onClick={() => setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'methodology' ? null : { id: bet.id, type: 'methodology' })}
+                          onClick={() => {
+                            setSearchQuery('');
+                            setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'methodology' ? null : { id: bet.id, type: 'methodology' });
+                          }}
                           className="bg-slate-800/50 text-xs text-yellow-400 font-black uppercase outline-none border border-slate-700/50 px-3 py-1.5 rounded-lg cursor-pointer hover:border-yellow-400/50 transition-all flex items-center gap-2 max-w-[200px]"
                         >
                           <span className="truncate">{bet.methodology || 'Sem Método'}</span>
@@ -139,15 +155,24 @@ type MenuType = 'league' | 'methodology' | 'tags';
                         </button>
                         {openMenu?.id === bet.id && openMenu.type === 'methodology' && (
                           <div className="absolute z-50 left-0 mt-2 min-w-[280px] w-max max-w-[350px] md:max-w-[450px] bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1">Selecionar Método</div>
+                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1 flex justify-between items-center">
+                              Selecionar Método
+                            </div>
+                            <div className="px-1 mb-3">
+                              <div className="relative">
+                                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input
+                                  type="text"
+                                  placeholder="Pesquisar..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white outline-none focus:border-yellow-500 transition-colors"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
                             <div className="max-h-72 overflow-y-auto flex flex-wrap gap-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
-                              <button
-                                onClick={() => { onUpdateBet(bet.id, { methodology: '' }); setOpenMenu(null); }}
-                                className={`text-[10px] px-3 py-1.5 rounded-full transition-all font-bold whitespace-nowrap ${!bet.methodology ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-600'}`}
-                              >
-                                Sem Método
-                              </button>
-                              {availableMethodologies.map(m => (
+                              {availableMethodologies.filter(m => m.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                                 <button
                                   key={m}
                                   onClick={() => { onUpdateBet(bet.id, { methodology: m }); setOpenMenu(null); }}
@@ -172,7 +197,10 @@ type MenuType = 'league' | 'methodology' | 'tags';
                             </span>
                           ))}
                           <button 
-                            onClick={() => setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'tags' ? null : { id: bet.id, type: 'tags' })}
+                            onClick={() => {
+                              setSearchQuery('');
+                              setOpenMenu(openMenu?.id === bet.id && openMenu.type === 'tags' ? null : { id: bet.id, type: 'tags' });
+                            }}
                             className="text-[11px] bg-slate-800 text-slate-500 hover:text-white border border-slate-700 px-2 py-1 rounded-lg transition-all font-black flex items-center gap-1"
                           >
                             <i className="fas fa-plus"></i> Tag
@@ -181,9 +209,24 @@ type MenuType = 'league' | 'methodology' | 'tags';
 
                         {openMenu?.id === bet.id && openMenu.type === 'tags' && (
                           <div className="absolute z-50 left-0 mt-2 min-w-[280px] w-max max-w-[350px] md:max-w-[450px] bg-slate-900 border border-slate-700 rounded-[1.5rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1">Selecionar Tags</div>
+                            <div className="text-[11px] font-black text-slate-500 uppercase px-1 mb-2 tracking-widest pt-1 flex justify-between items-center">
+                              Selecionar Tags
+                            </div>
+                            <div className="px-1 mb-3">
+                              <div className="relative">
+                                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input
+                                  type="text"
+                                  placeholder="Pesquisar..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white outline-none focus:border-blue-500 transition-colors"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
                             <div className="max-h-72 overflow-y-auto flex flex-wrap gap-1.5 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
-                              {availableTags.map(tag => (
+                              {availableTags.filter(t => t.toLowerCase().includes(searchQuery.toLowerCase())).map(tag => (
                                 <button
                                   key={tag}
                                   onClick={() => handleToggleTag(bet, tag)}
