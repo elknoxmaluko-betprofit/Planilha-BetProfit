@@ -1,6 +1,6 @@
 import React from 'react';
 import { Stats, Bet, BetStatus } from '../types';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LabelList } from 'recharts';
 import Logo from './Logo';
 import html2canvas from 'html2canvas';
 
@@ -147,6 +147,38 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
     return data;
   }, [bets]);
 
+  const dailyEquityData = React.useMemo(() => {
+    if (bets.length === 0) return [];
+    const sortedBets = [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const dailyMap = new Map<string, number>();
+    sortedBets.forEach(bet => {
+      const d = new Date(bet.date);
+      const dateStr = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+      dailyMap.set(dateStr, (dailyMap.get(dateStr) || 0) + bet.profit);
+    });
+
+    let runningProfit = 0;
+    let runningPct = 0;
+    const data = [{ name: 'Início', balance: 0, dateStr: '', betProfit: 0, balancePct: 0, betProfitPct: 0 }];
+    
+    dailyMap.forEach((profit, dateStr) => {
+      const pct = stats.monthlyStake > 0 ? (profit / stats.monthlyStake) * 100 : 0;
+      runningProfit += profit;
+      runningPct += pct;
+      data.push({
+        name: dateStr,
+        balance: parseFloat(runningProfit.toFixed(2)),
+        balancePct: parseFloat(runningPct.toFixed(2)),
+        dateStr: dateStr,
+        betProfit: profit,
+        betProfitPct: parseFloat(pct.toFixed(2))
+      });
+    });
+
+    return data;
+  }, [bets, stats.monthlyStake]);
+
   const teamPerformanceData = React.useMemo(() => {
     const teamStats: Record<string, number> = {};
     
@@ -240,12 +272,15 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
     return pct < min ? pct : min;
   }, 0);
 
+  const diasGreen = calendarData.filter(d => d.hasBets && d.profit > 0).length;
+  const diasRed = calendarData.filter(d => d.hasBets && d.profit < 0).length;
+
   const handleExportImage = async () => {
     if (!reportRef.current) return;
     setIsExporting(true);
     try {
       // Pequeno delay para garantir que a DOM atualizou se necessário
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 250));
       const canvas = await html2canvas(reportRef.current, {
         backgroundColor: '#020617', // tailwind slate-950
         scale: 2, // higher resolution
@@ -580,7 +615,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                      const pct = stats.monthlyStake > 0 ? (value / stats.monthlyStake) * 100 : 0;
                      return `${pct > 0 ? '+' : ''}${pct.toFixed(0)}%`;
                    }} 
-                   width={40}
+                   width={50}
                 />
                 <Tooltip 
                   content={({ active, payload, label }) => {
@@ -665,7 +700,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
 
       {/* Hidden Report Card for Export */}
       <div className="absolute top-[-9999px] left-[-9999px]">
-        <div ref={reportRef} className="w-[1080px] h-[1080px] bg-[#020617] text-white p-16 flex flex-col relative" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <div ref={reportRef} className="w-[1080px] h-[1350px] bg-[#020617] text-white p-16 flex flex-col relative" style={{ fontFamily: 'Inter, sans-serif' }}>
           <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[50%] bg-emerald-500/20 blur-[120px] rounded-full"></div>
           <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-500/10 blur-[100px] rounded-full"></div>
           
@@ -681,7 +716,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
           </div>
 
           <div className="flex-1 flex flex-col justify-center gap-12 z-10 mt-12">
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid grid-cols-2 gap-10">
                   <div className="bg-slate-900/80 border border-slate-800 rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-2xl">
                       <span className="text-2xl text-slate-400 font-bold uppercase tracking-widest mb-4">Lucro em Stakes</span>
                       <span className={`text-8xl font-black tracking-tighter ${stats.profitInStakes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -696,11 +731,21 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                   </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-3 gap-8">
                   <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
                       <i className="fas fa-bullseye text-4xl text-blue-400 mb-4"></i>
                       <span className="text-5xl font-black text-white">{stats.winRate.toFixed(1)}%</span>
                       <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Taxa Acerto</span>
+                  </div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
+                      <i className="fas fa-calendar-check text-4xl text-emerald-400 mb-4"></i>
+                      <span className="text-5xl font-black text-white">{diasGreen}</span>
+                      <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Dias Green</span>
+                  </div>
+                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
+                      <i className="fas fa-calendar-times text-4xl text-red-400 mb-4"></i>
+                      <span className="text-5xl font-black text-white">{diasRed}</span>
+                      <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Dias Red</span>
                   </div>
                   <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
                       <i className="fas fa-ticket-alt text-4xl text-purple-400 mb-4"></i>
@@ -709,13 +754,67 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                   </div>
                   <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
                       <i className="fas fa-arrow-trend-up text-4xl text-emerald-400 mb-4"></i>
-                      <span className="text-4xl font-black text-emerald-400">+{melhorGreen.toFixed(1)}%</span>
-                      <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-4">Melhor Green</span>
+                      <span className="text-5xl font-black text-emerald-400">+{melhorGreen.toFixed(1)}%</span>
+                      <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Melhor Green</span>
                   </div>
                   <div className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center">
                       <i className="fas fa-arrow-trend-down text-4xl text-red-400 mb-4"></i>
-                      <span className="text-4xl font-black text-red-400">{piorRed.toFixed(1)}%</span>
-                      <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-4">Pior Red</span>
+                      <span className="text-5xl font-black text-red-400">{piorRed.toFixed(1)}%</span>
+                      <span className="text-sm text-slate-400 font-bold uppercase tracking-wider mt-4">Pior Red</span>
+                  </div>
+              </div>
+
+              <div className="h-80 w-full bg-slate-900/60 border border-slate-800/80 rounded-[2.5rem] p-10 flex flex-col">
+                  <span className="text-xl text-slate-400 font-bold uppercase tracking-widest mb-4">Curva de Crescimento Mensal</span>
+                  <div className="flex-1 w-full flex items-center justify-center pt-2">
+                    {dailyEquityData.length > 1 ? (
+                      <AreaChart width={872} height={180} data={dailyEquityData} margin={{ top: 15, right: 20, left: 10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.5} />
+                        <XAxis dataKey="name" stroke="#334155" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={{ stroke: '#334155', strokeWidth: 1 }} />
+                        <YAxis 
+                          stroke="#475569" 
+                          fontSize={12} 
+                          fontWeight="bold"
+                          tickLine={false} 
+                          axisLine={false} 
+                          domain={['auto', 'auto']}
+                          tickFormatter={(value) => `${value > 0 ? '+' : ''}${value.toFixed(0)}%`} 
+                        />
+                        <defs>
+                          <linearGradient id="splitColorCard" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset={off} stopColor="#10b981" stopOpacity={1} />
+                            <stop offset={off} stopColor="#ef4444" stopOpacity={1} />
+                          </linearGradient>
+                          <linearGradient id="splitFillCard" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.6} />
+                            <stop offset={off} stopColor="#10b981" stopOpacity={0.05} />
+                            <stop offset={off} stopColor="#ef4444" stopOpacity={0.05} />
+                            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.6} />
+                          </linearGradient>
+                        </defs>
+                        <Area 
+                          type="monotone" 
+                          dataKey="balancePct" 
+                          stroke="url(#splitColorCard)" 
+                          fill="url(#splitFillCard)" 
+                          strokeWidth={3}
+                          isAnimationActive={false}
+                        >
+                          <LabelList 
+                            dataKey="betProfitPct" 
+                            position="top" 
+                            fill="#94a3b8" 
+                            fontSize={10} 
+                            formatter={(value: number) => {
+                              if (value === 0) return '';
+                              return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+                            }} 
+                          />
+                        </Area>
+                      </AreaChart>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-500 italic text-sm">Registe mais operações para ver a curva</div>
+                    )}
                   </div>
               </div>
           </div>
