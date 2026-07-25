@@ -60,6 +60,54 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   useEffect(() => { localStorage.setItem(getKey('betprofit_projects'), JSON.stringify(projects)); }, [projects, user.id]);
   useEffect(() => { localStorage.setItem(getKey('betprofit_settings'), JSON.stringify(settings)); }, [settings, user.id]);
 
+  // --- AUTO-ADVANCE CYCLES ---
+  useEffect(() => {
+      setProjects(prevProjects => {
+          let projectsUpdated = false;
+          
+          const nextProjects = prevProjects.map(proj => {
+              if (proj.projectType === 'NETTUNO_CICLOS' && proj.status === 'ACTIVE') {
+                  const CYCLE_BANKS = [100, 100, 150, 250, 465];
+                  const ratio = proj.startBankroll / 100;
+                  const profitRatio = 1.3107;
+                  
+                  const sortedBets = bets.filter(b => b.projectId === proj.id)
+                                         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  
+                  let active = 0;
+                  const cycles = [0, 1, 2, 3, 4].map(idx => {
+                      const startBank = CYCLE_BANKS[idx] * ratio;
+                      return {
+                          startBank,
+                          targetBank: startBank + (startBank * profitRatio),
+                          currentProfit: 0,
+                          currentBank: startBank
+                      };
+                  });
+                  
+                  sortedBets.forEach(bet => {
+                      if (active < 5) {
+                          const cycle = cycles[active];
+                          cycle.currentProfit += bet.profit;
+                          cycle.currentBank = cycle.startBank + cycle.currentProfit;
+                          if (cycle.currentBank >= cycle.targetBank && active < 4) {
+                              active++;
+                          }
+                      }
+                  });
+                  
+                  if (proj.activeCycleIndex !== active) {
+                      projectsUpdated = true;
+                      return { ...proj, activeCycleIndex: active };
+                  }
+              }
+              return proj;
+          });
+          
+          return projectsUpdated ? nextProjects : prevProjects;
+      });
+  }, [bets]);
+
   // --- UI STATE ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -151,12 +199,14 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
       betToSave.projectId = getProjectIdFromTags(betToSave.tags);
     }
 
-    // Auto-associação de dezena se for projeto Baliza Zero
+    // Auto-associação de dezena se for projeto Baliza Zero ou Ciclo se for Nettuno
     if (betToSave.projectId) {
         const project = projects.find(p => p.id === betToSave.projectId);
         if (project && project.projectType === 'BALIZA_ZERO') {
             // Garante que usa a dezena ativa do projeto
             betToSave.dezenaIndex = project.activeDezenaIndex ?? 0;
+        } else if (project && project.projectType === 'NETTUNO_CICLOS') {
+            betToSave.cycleIndex = project.activeCycleIndex ?? 0;
         }
     }
 
@@ -210,6 +260,9 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     if (project.projectType === 'BALIZA_ZERO') {
         project.activeDezenaIndex = 0;
     }
+    if (project.projectType === 'NETTUNO_CICLOS') {
+        project.activeCycleIndex = 0;
+    }
     setProjects(prev => [...prev, project]);
   };
 
@@ -250,16 +303,28 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     updateProject(projectId, { activeDezenaIndex: nextIndex });
   };
 
+  const advanceProjectCycle = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    const currentIndex = project.activeCycleIndex ?? 0;
+    const nextIndex = currentIndex + 1;
+    if (nextIndex > 4) return; // Máximo 5 ciclos (0 a 4)
+
+    // Atualizar índice do projeto
+    updateProject(projectId, { activeCycleIndex: nextIndex });
+  };
+
   const assignBetsToProject = (projectId: string, projectTag: string) => {
     if (!projectTag) return;
     
     const project = projects.find(p => p.id === projectId);
     const targetDezenaIndex = project?.activeDezenaIndex ?? 0;
+    const targetCycleIndex = project?.activeCycleIndex ?? 0;
 
     setBets(prev => prev.map(b => {
       if (b.tags?.some(t => t.toLowerCase() === projectTag.toLowerCase())) {
-         // Respeita a dezena ativa do projeto em vez de forçar 0
-         return { ...b, projectId, dezenaIndex: targetDezenaIndex };
+         return { ...b, projectId, dezenaIndex: targetDezenaIndex, cycleIndex: targetCycleIndex };
       }
       return b;
     }));
@@ -530,7 +595,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
         {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} onEdit={(oldName, newName) => handleRenameListItem('methodologies', oldName, newName)} currency={currency} />}
         {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
-        {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} currency={currency} availableTags={tagsList} />}
+        {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} onAdvanceProjectCycle={advanceProjectCycle} currency={currency} availableTags={tagsList} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects, currency }} onDataImport={handleDataImport} />}
         {view === 'add' && <BetForm onAdd={addBet} onCancel={() => { setView('dashboard'); setEditingBetId(null); }} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} initialBet={bets.find(b => b.id === editingBetId)} />}
 
@@ -539,11 +604,13 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
                 let pid = b.projectId;
                 if (!pid && b.tags) pid = getProjectIdFromTags(b.tags);
                 let dezIndex = 0;
+                let cycIndex = 0;
                 if(pid) {
                    const p = projects.find(pr => pr.id === pid);
                    if(p && p.projectType === 'BALIZA_ZERO') dezIndex = p.activeDezenaIndex ?? 0;
+                   if(p && p.projectType === 'NETTUNO_CICLOS') cycIndex = p.activeCycleIndex ?? 0;
                 }
-                return { ...b, projectId: pid, dezenaIndex: dezIndex };
+                return { ...b, projectId: pid, dezenaIndex: dezIndex, cycleIndex: cycIndex };
             });
             
             // Local update only

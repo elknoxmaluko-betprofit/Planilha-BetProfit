@@ -19,10 +19,12 @@ export interface Project {
   startDate: string;
   status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   description?: string;
-  projectType?: 'STANDARD' | 'BALIZA_ZERO';
+  projectType?: 'STANDARD' | 'BALIZA_ZERO' | 'NETTUNO_CICLOS';
   stakeGoal?: number;      
   bankrollDivision?: number;
   activeDezenaIndex?: number; // Novo: Índice da dezena atualmente ativa (0, 1, 2...)
+  activeCycleIndex?: number; // Índice do ciclo para NETTUNO_CICLOS (0 a 4)
+  nettunoInitialPercentage?: number; // % Inicial para método Nettuno (ex: 5%)
   tag?: string; // Novo: Tag identificadora do projeto para capturar apostas automaticamente
 }
 
@@ -44,6 +46,7 @@ export interface Bet {
   team?: string;
   projectId?: string;
   dezenaIndex?: number; // Novo: Índice da dezena a que esta aposta pertence
+  cycleIndex?: number; // Índice do ciclo a que esta aposta pertence (NETTUNO_CICLOS)
 }
 
 export interface Stats {

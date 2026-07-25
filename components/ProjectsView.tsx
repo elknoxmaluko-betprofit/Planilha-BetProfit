@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Project, Bet, BetStatus } from '../types';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
 import BalizaZeroView from './BalizaZeroView';
+import NettunoCiclosView from './NettunoCiclosView';
 
 interface ProjectsViewProps {
   projects: Project[];
@@ -11,11 +12,12 @@ interface ProjectsViewProps {
   onUpdate: (id: string, updates: Partial<Project>) => void;
   onAssignBets: (projectId: string, tag: string) => void;
   onAdvanceProjectDezena?: (projectId: string) => void;
+  onAdvanceProjectCycle?: (projectId: string) => void;
   currency: string;
   availableTags: string[];
 }
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, onDelete, onUpdate, onAssignBets, onAdvanceProjectDezena, currency, availableTags }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, onDelete, onUpdate, onAssignBets, onAdvanceProjectDezena, onAdvanceProjectCycle, currency, availableTags }) => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -26,6 +28,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
     goal: 1000, 
     stakeGoal: 100,
     bankrollDivision: 10,
+    nettunoInitialPercentage: 5,
     startDate: new Date().toISOString().split('T')[0],
     description: '',
     projectType: 'STANDARD',
@@ -105,6 +108,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                progress = ((currentDezenaStake - startStake) / (proj.stakeGoal - startStake)) * 100;
           }
 
+      } else if (proj.projectType === 'NETTUNO_CICLOS') {
+          totalProfit = settledBets.reduce((acc, b) => acc + b.profit, 0);
+          currentBankroll = proj.startBankroll + totalProfit;
+          
+          const profitRatio = 1.3107;
+          const maxCycleGoal = (proj.startBankroll * 4.65) * (1 + profitRatio);
+
+          progress = Math.min(100, Math.max(0, (currentBankroll / maxCycleGoal) * 100));
+          // Armazenar meta calculada para exibir no painel
+          (proj as any)._calculatedNettunoGoal = maxCycleGoal;
       } else {
           // Lógica Standard (Soma direta)
           totalProfit = settledBets.reduce((acc, b) => acc + b.profit, 0);
@@ -146,7 +159,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newProject.name && newProject.startBankroll) {
+    if (newProject.name && newProject.startBankroll && newProject.tag) {
       const project: Project = {
         id: crypto.randomUUID(),
         name: newProject.name,
@@ -158,6 +171,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         goal: newProject.projectType === 'STANDARD' && newProject.goal ? Number(newProject.goal) : undefined,
         stakeGoal: newProject.projectType === 'BALIZA_ZERO' && newProject.stakeGoal ? Number(newProject.stakeGoal) : undefined,
         bankrollDivision: newProject.projectType === 'BALIZA_ZERO' && newProject.bankrollDivision ? Number(newProject.bankrollDivision) : undefined,
+        nettunoInitialPercentage: newProject.projectType === 'NETTUNO_CICLOS' && newProject.nettunoInitialPercentage ? Number(newProject.nettunoInitialPercentage) : undefined,
         tag: newProject.tag ? newProject.tag.trim().toLowerCase() : undefined
       };
       
@@ -175,6 +189,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         goal: 1000, 
         stakeGoal: 100,
         bankrollDivision: 10,
+        nettunoInitialPercentage: 5,
         startDate: new Date().toISOString().split('T')[0], 
         description: '', 
         projectType: 'STANDARD',
@@ -203,6 +218,17 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         />
       );
     }
+    if (selectedProject.projectType === 'NETTUNO_CICLOS') {
+      return (
+        <NettunoCiclosView 
+          project={selectedProject} 
+          bets={betsForView} 
+          onBack={() => setSelectedProjectId(null)} 
+          currency={currency}
+          onAdvanceCycle={onAdvanceProjectCycle}
+        />
+      );
+    }
     return (
       <div className="space-y-6">
         <button onClick={() => setSelectedProjectId(null)} className="flex items-center gap-2 text-slate-400 hover:text-white mb-4">
@@ -219,7 +245,58 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                 )}
               </div>
            </div>
-           <p className="text-slate-400 mt-4">Detalhes do projeto padrão aqui.</p>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 mb-8">
+              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                 <p className="text-slate-500 text-xs uppercase font-bold tracking-widest mb-1">Banca Inicial</p>
+                 <p className="text-xl font-bold text-white">{selectedProject.startBankroll.toFixed(2)}{currency}</p>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                 <p className="text-slate-500 text-xs uppercase font-bold tracking-widest mb-1">Banca Atual</p>
+                 <p className={`text-xl font-bold ${activeStats && activeStats.currentBankroll >= selectedProject.startBankroll ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {activeStats ? activeStats.currentBankroll.toFixed(2) : selectedProject.startBankroll.toFixed(2)}{currency}
+                 </p>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                 <p className="text-slate-500 text-xs uppercase font-bold tracking-widest mb-1">Entradas</p>
+                 <p className="text-xl font-bold text-white">{betsForView.length}</p>
+              </div>
+           </div>
+
+           {betsForView.length > 0 ? (
+               <div className="border border-slate-700 rounded-lg overflow-hidden mt-8">
+                   <div className="overflow-x-auto">
+                       <table className="w-full text-xs text-left border-collapse font-mono">
+                           <thead>
+                               <tr className="bg-slate-800 text-slate-300 uppercase font-bold text-[10px] tracking-wider">
+                                   <th className="p-3 border-r border-slate-700">Data</th>
+                                   <th className="p-3 border-r border-slate-700">Evento</th>
+                                   <th className="p-3 border-r border-slate-700">Mercado</th>
+                                   <th className="p-3 border-r border-slate-700 text-right">Stake</th>
+                                   <th className="p-3 border-r border-slate-700 text-right">Lucro/Prejuízo</th>
+                               </tr>
+                           </thead>
+                           <tbody className="bg-slate-900 text-slate-300">
+                               {betsForView.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(bet => (
+                                   <tr key={bet.id} className="border-b border-slate-800 hover:bg-slate-800/50">
+                                       <td className="p-2 border-r border-slate-800">{new Date(bet.date).toLocaleDateString()}</td>
+                                       <td className="p-2 border-r border-slate-800 truncate max-w-[150px]">{bet.event}</td>
+                                       <td className="p-2 border-r border-slate-800 truncate max-w-[120px]">{bet.market}</td>
+                                       <td className="p-2 border-r border-slate-800 text-right">{bet.stake.toFixed(2)}{currency}</td>
+                                       <td className={`p-2 border-r border-slate-800 text-right font-bold ${bet.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                           {bet.profit >= 0 ? '+' : ''}{bet.profit.toFixed(2)}{currency}
+                                       </td>
+                                   </tr>
+                               ))}
+                           </tbody>
+                       </table>
+                   </div>
+               </div>
+           ) : (
+               <div className="text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700 mt-8">
+                   <i className="fas fa-list-ul text-4xl text-slate-600 mb-4"></i>
+                   <p className="text-slate-400">Nenhuma aposta associada a este projeto ainda.</p>
+               </div>
+           )}
         </div>
       </div>
     );
@@ -245,7 +322,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2 space-y-2">
               <label className="text-xs uppercase font-bold text-slate-500 tracking-widest">Tipo de Projeto</label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button 
                   type="button" 
                   onClick={() => setNewProject({ ...newProject, projectType: 'STANDARD' })}
@@ -259,9 +336,72 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                   onClick={() => setNewProject({ ...newProject, projectType: 'BALIZA_ZERO' })}
                   className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${newProject.projectType === 'BALIZA_ZERO' ? 'border-amber-500 bg-amber-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-500 hover:border-slate-500'}`}
                 >
-                  <i className="fas fa-futbol text-2xl"></i>
+                  <svg viewBox="0 0 100 100" className="w-8 h-8 drop-shadow-2xl">
+                    <defs>
+                      <linearGradient id="premiumGold" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" />
+                        <stop offset="50%" stopColor="#d97706" />
+                        <stop offset="100%" stopColor="#b45309" />
+                      </linearGradient>
+                      <linearGradient id="darkMetal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#334155" />
+                        <stop offset="100%" stopColor="#0f172a" />
+                      </linearGradient>
+                      <pattern id="hexNet" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                        <path d="M5 0 L10 2.5 L10 7.5 L5 10 L0 7.5 L0 2.5 Z" fill="none" stroke="#334155" strokeWidth="0.5" opacity="0.4"/>
+                      </pattern>
+                      <filter id="dropShadowBZ" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+                        <feOffset dx="2" dy="2" result="offsetblur"/>
+                        <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+                        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+                      </filter>
+                    </defs>
+                    <rect x="10" y="27.5" width="80" height="45" fill="url(#hexNet)" />
+                    <path d="M5 77.5 V22.5 H95 V77.5" stroke="url(#darkMetal)" strokeWidth="6" strokeLinecap="round" fill="none" filter="url(#dropShadowBZ)"/>
+                    <path d="M20 27.5 H40 L48 34 V44 L42 50 L48 56 V66 L40 72.5 H20 V27.5 Z M28 35.5 V43.5 H37 L40 41 V38 L37 35.5 H28 Z M28 56.5 V64.5 H37 L40 62 V59 L37 56.5 H28 Z" fill="url(#darkMetal)" stroke="#1e293b" strokeWidth="0.5" fillRule="evenodd" filter="url(#dropShadowBZ)"/>
+                    <path d="M55 27.5 H85 L85 35.5 L65 64.5 H85 V72.5 H50 V64.5 L70 35.5 H55 V27.5 Z" fill="url(#premiumGold)" stroke="#fff" strokeWidth="0.5" filter="url(#dropShadowBZ)"/>
+                  </svg>
                   <span className="font-bold">Baliza Zero</span>
                   <span className="text-[10px] uppercase bg-amber-500 text-black px-2 rounded font-black">Template</span>
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setNewProject({ ...newProject, projectType: 'NETTUNO_CICLOS' })}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${newProject.projectType === 'NETTUNO_CICLOS' ? 'border-indigo-500 bg-indigo-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-500 hover:border-slate-500'}`}
+                >
+                  <svg viewBox="0 0 100 100" className="w-8 h-8 drop-shadow-2xl">
+                     <defs>
+                        <linearGradient id="mintGreen" x1="0" y1="0" x2="1" y2="1">
+                           <stop offset="0%" stopColor="#6ee7b7" />
+                           <stop offset="100%" stopColor="#10b981" />
+                        </linearGradient>
+                        <linearGradient id="slateWhite" x1="0" y1="0" x2="1" y2="1">
+                           <stop offset="0%" stopColor="#e2e8f0" />
+                           <stop offset="100%" stopColor="#94a3b8" />
+                        </linearGradient>
+                        <filter id="dropShadowNC" x="-20%" y="-20%" width="140%" height="140%">
+                           <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                           <feOffset dx="1" dy="1" result="offsetblur"/>
+                           <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+                           <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                     </defs>
+                     <g transform="translate(50, 50)">
+                        <path d="M -15 -35 A 38 38 0 0 1 15 -35" fill="none" stroke="#1e3a8a" strokeWidth="4" strokeLinecap="round" />
+                        <path d="M 35 -15 A 38 38 0 0 1 35 15" fill="none" stroke="#1e3a8a" strokeWidth="4" strokeLinecap="round" />
+                        <path d="M 15 35 A 38 38 0 0 1 -15 35" fill="none" stroke="#1e3a8a" strokeWidth="4" strokeLinecap="round" />
+                        <path d="M -35 15 A 38 38 0 0 1 -35 -15" fill="none" stroke="#1e3a8a" strokeWidth="4" strokeLinecap="round" />
+                        <rect x="-20" y="-20" width="40" height="40" fill="none" stroke="#1e3a8a" strokeWidth="4" rx="4" />
+                        <path d="M -9 12 V -12 L 9 12 V -12" fill="none" stroke="url(#mintGreen)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M -15 -28 L -45 -45 L -28 -15 Z" fill="url(#slateWhite)" filter="url(#dropShadowNC)" />
+                        <path d="M -15 28 L -45 45 L -28 15 Z" fill="url(#slateWhite)" filter="url(#dropShadowNC)" />
+                        <path d="M 15 28 L 45 45 L 28 15 Z" fill="url(#slateWhite)" filter="url(#dropShadowNC)" />
+                        <path d="M 15 -28 L 45 -45 L 28 -15 Z" fill="url(#mintGreen)" filter="url(#dropShadowNC)" />
+                     </g>
+                  </svg>
+                  <span className="font-bold text-center">Método Ciclos</span>
+                  <span className="text-[10px] uppercase bg-indigo-500 text-white px-2 rounded font-black">Template</span>
                 </button>
               </div>
             </div>
@@ -277,6 +417,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">#</span>
                 <input 
                   type="text" 
+                  required
                   placeholder="ex: baliza01" 
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-white outline-none focus:border-yellow-400" 
                   value={newProject.tag} 
@@ -319,7 +460,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                 <label className="text-xs uppercase font-bold text-slate-500 tracking-widest">Objetivo Banca ({currency})</label>
                 <input type="number" placeholder="Opcional" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" value={newProject.goal} onChange={e => setNewProject({...newProject, goal: Number(e.target.value)})} />
               </div>
-            ) : (
+            ) : newProject.projectType === 'BALIZA_ZERO' ? (
               <>
                  <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-500 tracking-widest">Divisão de Banca (unidades)</label>
@@ -330,6 +471,17 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                   <input type="number" placeholder="Ex: Chegar a stake de 100€" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-amber-500" value={newProject.stakeGoal} onChange={e => setNewProject({...newProject, stakeGoal: Number(e.target.value)})} />
                 </div>
               </>
+            ) : (
+              <div className="md:col-span-1 space-y-4">
+                 <div className="space-y-2">
+                   <label className="text-xs uppercase font-bold text-indigo-400 tracking-widest">% Alvo por Entrada (Inicial)</label>
+                   <input type="number" step="0.1" required className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500" value={newProject.nettunoInitialPercentage} onChange={e => setNewProject({...newProject, nettunoInitialPercentage: Number(e.target.value)})} />
+                 </div>
+                 <div className="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl flex flex-col justify-center">
+                    <h4 className="text-indigo-400 font-bold text-sm mb-1"><i className="fas fa-info-circle mr-2"></i>Método Ciclos</h4>
+                    <p className="text-slate-400 text-xs">As metas dos 5 ciclos serão calculadas automaticamente com base na banca de {newProject.startBankroll || 0}{currency} e alvo de {newProject.nettunoInitialPercentage || 5}%. As metas decrescem a cada aposta.</p>
+                 </div>
+              </div>
             )}
 
             <div className="space-y-2">
@@ -362,6 +514,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                   <h3 className="text-xl font-bold text-white">{proj.name}</h3>
                   {proj.projectType === 'BALIZA_ZERO' && (
                     <span className="bg-amber-500/20 text-amber-500 text-[10px] uppercase font-black px-2 py-0.5 rounded border border-amber-500/30">Baliza Zero</span>
+                  )}
+                  {proj.projectType === 'NETTUNO_CICLOS' && (
+                    <span className="bg-indigo-500/20 text-indigo-400 text-[10px] uppercase font-black px-2 py-0.5 rounded border border-indigo-500/30">Método Ciclos</span>
                   )}
                 </div>
                 {proj.tag && (
@@ -401,6 +556,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                 <span>Progresso</span>
                 {proj.projectType === 'BALIZA_ZERO' && proj.stakeGoal ? (
                    <span>Meta Stake: {proj.stakeGoal}{currency}</span>
+                ) : proj.projectType === 'NETTUNO_CICLOS' ? (
+                   <span>Meta (Ciclo 5): {((proj as any)._calculatedNettunoGoal || 1075).toFixed(2)}{currency}</span>
                 ) : proj.goal ? (
                    <span>Meta: {proj.goal}{currency}</span>
                 ) : (
