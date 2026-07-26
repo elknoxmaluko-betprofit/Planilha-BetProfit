@@ -15,6 +15,7 @@ import Login, { User } from './components/Login';
 import DatabaseManager from './components/DatabaseManager';
 import Logo from './components/Logo';
 import ProfileSettings from './components/ProfileSettings';
+import DuplicateModal from './components/DuplicateModal';
 
 // Inner component to handle data logic when user is authenticated
 const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (u: User) => void; onDeleteUser: (userId: string) => void }> = ({ user, onLogout, onUpdateUser, onDeleteUser }) => {
@@ -121,6 +122,79 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   const [showCSVModal, setShowCSVModal] = useState(false);
   const [editingBetId, setEditingBetId] = useState<string | null>(null);
 
+  // --- DUPLICATE DETECTION STATE ---
+  const [pendingAddBets, setPendingAddBets] = useState<Bet[]>([]);
+  const [currentDuplicateConflict, setCurrentDuplicateConflict] = useState<{ newBet: Bet, existingBet: Bet } | null>(null);
+
+  const isDuplicate = (bet1: Bet, bet2: Bet) => {
+      if (bet1.id === bet2.id) return false;
+      const date1 = new Date(bet1.date).toISOString().split('T')[0];
+      const date2 = new Date(bet2.date).toISOString().split('T')[0];
+      return bet1.event.toLowerCase().trim() === bet2.event.toLowerCase().trim() &&
+             bet1.market.toLowerCase().trim() === bet2.market.toLowerCase().trim() &&
+             bet1.profit === bet2.profit &&
+             date1 === date2;
+  };
+
+  const processPendingBets = (betsToProcess: Bet[], currentBets: Bet[]) => {
+      let updatedBets = [...currentBets];
+      let queue = [...betsToProcess];
+      let conflict = null;
+
+      while(queue.length > 0) {
+          const betToProcess = queue.shift()!;
+          const duplicate = updatedBets.find(b => isDuplicate(b, betToProcess));
+
+          if (duplicate) {
+             conflict = { newBet: betToProcess, existingBet: duplicate };
+             break;
+          } else {
+             updatedBets.unshift(betToProcess);
+          }
+      }
+
+      return { updatedBets, remainingQueue: queue, conflict };
+  };
+
+  const enqueueBetsForProcessing = (newBets: Bet[]) => {
+      const { updatedBets, remainingQueue, conflict } = processPendingBets(newBets, bets);
+      
+      setBets(updatedBets);
+      
+      if (conflict) {
+         setPendingAddBets(remainingQueue);
+         setCurrentDuplicateConflict(conflict);
+      }
+  };
+
+  const handleResolveDuplicate = (action: 'ADD' | 'REPLACE' | 'IGNORE') => {
+      if (!currentDuplicateConflict) return;
+      const { newBet, existingBet } = currentDuplicateConflict;
+
+      let nextBets = [...bets];
+      
+      if (action === 'ADD') {
+          nextBets.unshift(newBet);
+      } else if (action === 'REPLACE') {
+          nextBets = nextBets.map(b => b.id === existingBet.id ? { ...newBet, id: existingBet.id } : b);
+      } else if (action === 'IGNORE') {
+          // do nothing
+      }
+
+      const { updatedBets, remainingQueue, conflict } = processPendingBets(pendingAddBets, nextBets);
+
+      setBets(updatedBets);
+      
+      if (conflict) {
+          setPendingAddBets(remainingQueue);
+          setCurrentDuplicateConflict(conflict);
+      } else {
+          setPendingAddBets([]);
+          setCurrentDuplicateConflict(null);
+      }
+  };
+  // --- END DUPLICATE DETECTION ---
+
   // --- HELPER FUNCTIONS ---
 
   const updateSettings = (updates: Partial<typeof settings>) => {
@@ -213,7 +287,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     if (editingBetId) {
       setBets(prev => prev.map(b => b.id === bet.id ? betToSave : b));
     } else {
-      setBets(prev => [betToSave, ...prev]);
+      enqueueBetsForProcessing([betToSave]);
     }
     
     setEditingBetId(null);
@@ -617,8 +691,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
                 return { ...b, projectId: pid, dezenaIndex: dezIndex, cycleIndex: cycIndex };
             });
             
-            // Local update only
-            setBets(prev => [...betsWithProjects, ...prev]); 
+            enqueueBetsForProcessing(betsWithProjects);
             setShowCSVModal(false); 
             setView('bets'); 
         }} onClose={() => setShowCSVModal(false)} monthlyStake={currentMonthlyStake} currency={currency} />}
@@ -631,6 +704,14 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
             onDeleteProfile={() => onDeleteUser(user.id)}
           />
         )}
+
+        <DuplicateModal 
+            isOpen={currentDuplicateConflict !== null}
+            newBet={currentDuplicateConflict?.newBet || null}
+            existingBet={currentDuplicateConflict?.existingBet || null}
+            onResolve={handleResolveDuplicate}
+            currency={currency}
+        />
       </main>
     </div>
   );
