@@ -27,6 +27,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
     startBankroll: 100,
     goal: 1000, 
     stakeGoal: 100,
+    balizaZeroTargetMultiplier: 2.5,
     bankrollDivision: 10,
     nettunoInitialPercentage: 5,
     startDate: new Date().toISOString().split('T')[0],
@@ -70,7 +71,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                   currentDezenaStake = s;
               }
               // Crescimento teórico (Meta de 2.5x a stake)
-              theoBank += (s * 2.5);
+              theoBank += (s * (proj.balizaZeroTargetMultiplier || 2.5));
           }
 
           // 2. Cálculo dos Resultados Reais (Lucro e Banca Atual)
@@ -170,6 +171,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         projectType: newProject.projectType || 'STANDARD',
         goal: newProject.projectType === 'STANDARD' && newProject.goal ? Number(newProject.goal) : undefined,
         stakeGoal: newProject.projectType === 'BALIZA_ZERO' && newProject.stakeGoal ? Number(newProject.stakeGoal) : undefined,
+        balizaZeroTargetMultiplier: newProject.projectType === 'BALIZA_ZERO' && newProject.balizaZeroTargetMultiplier ? Number(newProject.balizaZeroTargetMultiplier) : undefined,
         bankrollDivision: newProject.projectType === 'BALIZA_ZERO' && newProject.bankrollDivision ? Number(newProject.bankrollDivision) : undefined,
         nettunoInitialPercentage: newProject.projectType === 'NETTUNO_CICLOS' && newProject.nettunoInitialPercentage ? Number(newProject.nettunoInitialPercentage) : undefined,
         tag: newProject.tag ? newProject.tag.trim().toLowerCase() : undefined
@@ -188,6 +190,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         startBankroll: 100, 
         goal: 1000, 
         stakeGoal: 100,
+    balizaZeroTargetMultiplier: 2.5,
         bankrollDivision: 10,
         nettunoInitialPercentage: 5,
         startDate: new Date().toISOString().split('T')[0], 
@@ -468,7 +471,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-amber-500 tracking-widest">Objetivo Stake ({currency})</label>
-                  <input type="number" placeholder="Ex: Chegar a stake de 100€" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-amber-500" value={newProject.stakeGoal} onChange={e => setNewProject({...newProject, stakeGoal: Number(e.target.value)})} />
+                  <input type="number" placeholder="Ex: Chegar a stake de 100€" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-amber-500" value={newProject.stakeGoal || ''} onChange={e => setNewProject({...newProject, stakeGoal: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase font-bold text-amber-500 tracking-widest">Multiplicador da Dezena (ex: 2.5)</label>
+                  <input type="number" step="0.1" required className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-amber-500" value={newProject.balizaZeroTargetMultiplier} onChange={e => setNewProject({...newProject, balizaZeroTargetMultiplier: Number(e.target.value)})} />
                 </div>
               </>
             ) : (

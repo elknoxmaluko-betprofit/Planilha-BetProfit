@@ -20,7 +20,8 @@ export interface Project {
   status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   description?: string;
   projectType?: 'STANDARD' | 'BALIZA_ZERO' | 'NETTUNO_CICLOS';
-  stakeGoal?: number;      
+  stakeGoal?: number;
+  balizaZeroTargetMultiplier?: number;      
   bankrollDivision?: number;
   activeDezenaIndex?: number; // Novo: Índice da dezena atualmente ativa (0, 1, 2...)
   activeCycleIndex?: number; // Índice do ciclo para NETTUNO_CICLOS (0 a 4)

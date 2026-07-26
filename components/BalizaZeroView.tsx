@@ -53,7 +53,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
         let stake = runningBank / bankDivision;
         if (stakeGoal > 0 && stake >= stakeGoal) stake = stakeGoal;
         
-        const goal = stake * 2.5;
+        const goal = stake * (project.balizaZeroTargetMultiplier || 2.5);
 
         rows.push({
             id: i + 1,
@@ -287,7 +287,7 @@ const BalizaZeroView: React.FC<BalizaZeroViewProps> = ({ project, bets, onBack, 
                                    <td className="border border-slate-600 p-1">{row.id}ª</td>
                                    <td className="border border-slate-600 p-1 text-right px-2">{currency} {row.bank.toFixed(2)}</td>
                                    <td className="border border-slate-600 p-1 text-right px-2">{currency} {row.stake.toFixed(2)}</td>
-                                   <td className="border border-slate-600 p-1 bg-blue-400 text-black font-bold">2.5</td>
+                                   <td className="border border-slate-600 p-1 bg-blue-400 text-black font-bold">{project.balizaZeroTargetMultiplier || 2.5}</td>
                                    <td className="border border-slate-600 p-1 text-right px-2">{currency} {row.goal.toFixed(2)}</td>
                                  </tr>
                                );

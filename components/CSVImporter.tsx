@@ -17,12 +17,6 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
     try {
       if (!dateStr) return new Date().toISOString();
       
-      // Tenta parse direto primeiro (ISO)
-      const directDate = Date.parse(dateStr);
-      if (!isNaN(directDate) && dateStr.includes('-') && dateStr.length > 10) {
-         return new Date(dateStr).toISOString();
-      }
-
       const cleanDateStr = dateStr.toLowerCase().trim();
       
       const months: Record<string, number> = {
@@ -33,19 +27,42 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
         'fev': 1, 'abr': 3, 'mai': 4, 'ago': 7, 'set': 8, 'out': 9, 'dez': 11
       };
 
-      // Formato esperado: "09-jan-26 13:00" ou "09-jan-2026 13:00"
-      const match = cleanDateStr.match(/(\d{1,2})[/-]([a-z]{3})[/-](\d{2,4})\s+(\d{1,2}:\d{2})/);
+      // Tenta DD/MM/YYYY ou DD-MMM-YYYY, opcionalmente com horário
+      const match = cleanDateStr.match(/(\d{1,2})[/-]([a-z]{3}|\d{1,2})\.?[/-](\d{2,4})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?/);
       
       if (match) {
         const [_, day, monthStr, yearShort, time] = match;
-        const month = months[monthStr] || 0;
+        
+        let month = 0;
+        if (isNaN(Number(monthStr))) {
+           month = months[monthStr] || 0;
+        } else {
+           month = parseInt(monthStr) - 1; // 0-indexed
+        }
+
         let year = parseInt(yearShort);
         if (year < 100) year += 2000;
         
-        const [hours, minutes] = time.split(':');
-        return new Date(year, month, parseInt(day), parseInt(hours), parseInt(minutes)).toISOString();
+        let hours = 0;
+        let minutes = 0;
+        let seconds = 0;
+        if (time) {
+           const timeParts = time.split(':');
+           hours = parseInt(timeParts[0]) || 0;
+           minutes = parseInt(timeParts[1]) || 0;
+           if (timeParts[2]) {
+              seconds = parseInt(timeParts[2]) || 0;
+           }
+        }
+        return new Date(year, month, parseInt(day), hours, minutes, seconds).toISOString();
       }
-      
+
+      // Tenta parse direto (ISO ou MM/DD/YYYY)
+      const directDate = Date.parse(dateStr);
+      if (!isNaN(directDate)) {
+         return new Date(dateStr).toISOString();
+      }
+
       return new Date().toISOString();
     } catch {
       return new Date().toISOString();
@@ -54,9 +71,9 @@ const CSVImporter: React.FC<CSVImporterProps> = ({ onImport, onClose, monthlySta
 
   const normalizeHeader = (header: string): string => {
     const h = header.toLowerCase().trim();
-    if (h.includes('lucro') || h.includes('profit') || h.includes('p/l')) return 'profit';
-    if (h.includes('data') || h.includes('date') || h.includes('resolução') || h.includes('start time')) return 'date';
-    if (h.includes('mercado') || h.includes('market') || h.includes('descrição')) return 'market';
+    if (h.includes('lucro') || h.includes('profit') || h.includes('p/l') || h.includes('ganhos') || h.includes('resultado')) return 'profit';
+    if (h.includes('data') || h.includes('date') || h.includes('resolução') || h.includes('start time') || h.includes('settled') || h.includes('colocada') || h.includes('efetuada') || h.includes('hora')) return 'date';
+    if (h.includes('mercado') || h.includes('market') || h.includes('descrição') || h.includes('evento') || h.includes('item')) return 'market';
     return h;
   };
 
