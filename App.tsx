@@ -252,8 +252,12 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     }));
   };
 
-  const deleteBet = async (id: string) => {
-    setBets(prev => prev.filter(b => b.id !== id));
+  const deleteBet = async (ids: string | string[]) => {
+    if (Array.isArray(ids)) {
+      setBets(prev => prev.filter(b => !ids.includes(b.id)));
+    } else {
+      setBets(prev => prev.filter(b => b.id !== ids));
+    }
   };
 
   const createProject = async (project: Project) => {

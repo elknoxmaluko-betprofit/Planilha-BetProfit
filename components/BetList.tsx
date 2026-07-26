@@ -5,7 +5,7 @@ import { TeamBadge } from './TeamsView';
 
 interface BetListProps {
   bets: Bet[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string | string[]) => void;
   onEdit: (id: string) => void;
   onUpdateBet: (id: string, updates: Partial<Bet>) => void;
   monthlyStake: number;
@@ -30,8 +30,10 @@ const BetList: React.FC<BetListProps> = ({
 }) => {
 type MenuType = 'league' | 'methodology' | 'tags';
   const [openMenu, setOpenMenu] = useState<{ id: string, type: MenuType } | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<string[] | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBets, setSelectedBets] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const handleToggleTag = (bet: Bet, tag: string) => {
     const currentTags = bet.tags || [];
@@ -41,8 +43,54 @@ type MenuType = 'league' | 'methodology' | 'tags';
     onUpdateBet(bet.id, { tags: newTags });
   };
 
+  const handleToggleSelectAll = () => {
+    if (selectedBets.length === bets.length && bets.length > 0) {
+      setSelectedBets([]);
+    } else {
+      setSelectedBets(bets.map(b => b.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedBets(prev => 
+      prev.includes(id) ? prev.filter(betId => betId !== id) : [...prev, id]
+    );
+  };
+
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] shadow-2xl relative">
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        {!isSelectionMode ? (
+          <button 
+            onClick={() => setIsSelectionMode(true)}
+            className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-bold bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800 transition-colors"
+          >
+            <i className="fas fa-check-square"></i> Seleção Múltipla
+          </button>
+        ) : (
+          <div className="flex items-center gap-4 w-full justify-between bg-slate-900/80 border border-slate-800 p-4 rounded-2xl animate-in fade-in zoom-in-95 duration-200">
+             <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => { setIsSelectionMode(false); setSelectedBets([]); }}
+                  className="text-slate-400 hover:text-white font-bold text-sm px-3 py-1.5"
+                >
+                  Cancelar
+                </button>
+                <span className="text-slate-300 font-bold"><span className="text-yellow-400">{selectedBets.length}</span> apostas selecionadas</span>
+             </div>
+             <button 
+               onClick={() => {
+                  if (selectedBets.length > 0) setDeletingIds(selectedBets);
+               }}
+               disabled={selectedBets.length === 0}
+               className={`px-4 py-2 rounded-xl font-bold transition-colors text-sm flex items-center gap-2 border ${selectedBets.length > 0 ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/20 shadow-sm shadow-red-500/10' : 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'}`}
+             >
+               <i className="fas fa-trash"></i> Apagar Seleção
+             </button>
+          </div>
+        )}
+      </div>
+      <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] shadow-2xl relative">
       <div className={`rounded-[2.5rem] transition-all duration-300 ${openMenu ? 'overflow-visible pb-64 md:pb-0' : 'overflow-x-auto'} md:overflow-visible`}>
         <table className="w-full text-left border-collapse">
           <thead>
@@ -52,18 +100,28 @@ type MenuType = 'league' | 'methodology' | 'tags';
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase tracking-[0.2em]">Método / Tags</th>
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-center tracking-[0.2em]">Stake</th>
               <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-right tracking-[0.2em]">P/L</th>
-              <th className="px-8 py-6 text-slate-500 font-black text-xs uppercase text-right tracking-[0.2em] rounded-tr-[2.5rem]">Ações</th>
+              <th className={`py-6 text-slate-500 font-black text-xs uppercase text-right tracking-[0.2em] ${isSelectionMode ? 'px-4' : 'px-8 rounded-tr-[2.5rem]'}`}>Ações</th>
+              {isSelectionMode && (
+                <th className="pr-8 pl-4 py-6 text-slate-500 font-black text-xs uppercase tracking-[0.2em] rounded-tr-[2.5rem] w-12 text-right">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-700 bg-slate-900 text-yellow-400 focus:ring-yellow-400/50 focus:ring-offset-slate-900 w-4 h-4 cursor-pointer"
+                    checked={bets.length > 0 && selectedBets.length === bets.length}
+                    onChange={handleToggleSelectAll}
+                  />
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50">
             {bets.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-8 py-28 text-center text-slate-500 italic text-lg rounded-b-[2.5rem]">Sem registos para mostrar neste período.</td>
+                <td colSpan={isSelectionMode ? 7 : 6} className="px-8 py-28 text-center text-slate-500 italic text-lg rounded-b-[2.5rem]">Sem registos para mostrar neste período.</td>
               </tr>
             ) : (
               bets.map((bet, index) => (
-                <tr key={bet.id} className="hover:bg-slate-800/30 transition-all group">
-                  <td className={`px-8 py-6 ${index === bets.length - 1 ? 'rounded-bl-[2.5rem]' : ''}`}>
+                <tr key={bet.id} className={`hover:bg-slate-800/30 transition-all group ${selectedBets.includes(bet.id) ? 'bg-yellow-400/5' : ''}`}>
+                  <td className={`py-6 px-8 ${index === bets.length - 1 ? 'rounded-bl-[2.5rem]' : ''}`}>
                     <div className="text-xs text-slate-500 font-black mb-2">{new Date(bet.date).toLocaleDateString('pt-PT')}</div>
                     {(() => {
                       const match = bet.event.match(/^(.*?)\s+(?:v|vs\.?|x|-)\s+(.*?)$/i);
@@ -252,12 +310,22 @@ type MenuType = 'league' | 'methodology' | 'tags';
                     <div className="text-xl">{bet.profit > 0 ? '+' : ''}{bet.profit.toFixed(2)}{currency}</div>
                     <div className="text-xs opacity-70 mt-1">{bet.profitPercentage.toFixed(1)}% Yield</div>
                   </td>
-                  <td className={`px-8 py-6 text-right ${index === bets.length - 1 ? 'rounded-br-[2.5rem]' : ''}`}>
+                  <td className={`py-6 text-right ${isSelectionMode ? 'px-4' : 'px-8'} ${index === bets.length - 1 && !isSelectionMode ? 'rounded-br-[2.5rem]' : ''}`}>
                     <div className="flex justify-end items-center gap-2">
                       <button onClick={() => onEdit(bet.id)} className="text-slate-700 hover:text-yellow-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-pen"></i></button>
-                      <button onClick={() => setDeletingId(bet.id)} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
+                      <button onClick={() => setDeletingIds([bet.id])} className="text-slate-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 p-3 text-lg"><i className="fas fa-trash-alt"></i></button>
                     </div>
                   </td>
+                  {isSelectionMode && (
+                    <td className={`pr-8 pl-4 py-6 text-right ${index === bets.length - 1 ? 'rounded-br-[2.5rem]' : ''}`}>
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-700 bg-slate-900 text-yellow-400 focus:ring-yellow-400/50 focus:ring-offset-slate-900 w-4 h-4 cursor-pointer"
+                        checked={selectedBets.includes(bet.id)}
+                        onChange={() => handleToggleSelect(bet.id)}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -269,15 +337,19 @@ type MenuType = 'league' | 'methodology' | 'tags';
       )}
       
       <ConfirmModal
-        isOpen={deletingId !== null}
+        isOpen={deletingIds !== null}
         title="Confirmar Eliminação"
-        message="Tem a certeza que pretende eliminar esta entrada? Esta ação não pode ser desfeita."
+        message={deletingIds?.length && deletingIds.length > 1 ? `Tem a certeza que pretende eliminar as ${deletingIds.length} apostas selecionadas? Esta ação não pode ser desfeita.` : "Tem a certeza que pretende eliminar esta entrada? Esta ação não pode ser desfeita."}
         onConfirm={() => {
-          if (deletingId) onDelete(deletingId);
-          setDeletingId(null);
+          if (deletingIds) {
+            onDelete(deletingIds);
+            setSelectedBets([]);
+          }
+          setDeletingIds(null);
         }}
-        onCancel={() => setDeletingId(null)}
+        onCancel={() => setDeletingIds(null)}
       />
+    </div>
     </div>
   );
 };
