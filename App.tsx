@@ -17,7 +17,7 @@ import Logo from './components/Logo';
 import ProfileSettings from './components/ProfileSettings';
 
 // Inner component to handle data logic when user is authenticated
-const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (u: User) => void }> = ({ user, onLogout, onUpdateUser }) => {
+const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (u: User) => void; onDeleteUser: (userId: string) => void }> = ({ user, onLogout, onUpdateUser, onDeleteUser }) => {
   // --- HELPER FOR USER-SCOPED STORAGE KEYS ---
   // If user ID is 'default' (legacy migration), use root keys to preserve data.
   // Otherwise, suffix keys with user ID.
@@ -624,6 +624,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
             user={user} 
             onUpdate={onUpdateUser} 
             onClose={() => setShowProfileSettings(false)} 
+            onDeleteProfile={() => onDeleteUser(user.id)}
           />
         )}
       </main>
@@ -658,6 +659,39 @@ const App: React.FC = () => {
      setCurrentUser(updatedUser);
   };
 
+  const handleDeleteUser = (userId: string) => {
+     const storedUsers = localStorage.getItem('betprofit_users');
+     if (storedUsers) {
+        try {
+           const users = JSON.parse(storedUsers) as User[];
+           const newUsers = users.map(u => {
+              if (u.id === userId) {
+                 // Wipe specific data for this user
+                 const keysToRemove = [
+                    `betprofit_bets_${userId}`,
+                    `betprofit_projects_${userId}`,
+                    `betprofit_settings_${userId}`
+                 ];
+                 keysToRemove.forEach(k => localStorage.removeItem(k));
+                 // Se era o usuário default legacy, também limpamos
+                 if (userId === 'default') {
+                    localStorage.removeItem('betprofit_bets');
+                    localStorage.removeItem('betprofit_projects');
+                    localStorage.removeItem('betprofit_settings');
+                 }
+                 return null;
+              }
+              return u;
+           }).filter(Boolean) as User[];
+           
+           localStorage.setItem('betprofit_users', JSON.stringify(newUsers));
+        } catch(e) {
+           console.error("Failed to delete user from storage", e);
+        }
+     }
+     setCurrentUser(null);
+  };
+
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
@@ -670,6 +704,7 @@ const App: React.FC = () => {
       user={currentUser} 
       onLogout={handleLogout} 
       onUpdateUser={handleUpdateUser}
+      onDeleteUser={handleDeleteUser}
     />
   );
 };

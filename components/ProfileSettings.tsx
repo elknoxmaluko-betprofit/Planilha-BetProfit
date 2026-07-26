@@ -5,11 +5,13 @@ interface ProfileSettingsProps {
   user: User;
   onUpdate: (updatedUser: User) => void;
   onClose: () => void;
+  onDeleteProfile: () => void;
 }
 
-const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate, onClose }) => {
+const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate, onClose, onDeleteProfile }) => {
   const [name, setName] = useState(user.name);
   const [avatar, setAvatar] = useState(user.avatar || '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,20 +118,56 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate, onClo
             </div>
           </div>
 
-          <div className="flex gap-4 pt-2">
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="flex-1 py-3 font-bold text-slate-400 hover:text-white transition-colors"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit" 
-              className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl shadow-lg shadow-yellow-400/20 transition-all active:scale-95"
-            >
-              Guardar Alterações
-            </button>
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="flex gap-4">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="flex-1 py-3 font-bold text-slate-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit" 
+                className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl shadow-lg shadow-yellow-400/20 transition-all active:scale-95"
+              >
+                Guardar Alterações
+              </button>
+            </div>
+            
+            <div className="border-t border-slate-800 pt-6 mt-2">
+              {!confirmDelete ? (
+                <button 
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full text-red-400/80 hover:text-red-400 hover:bg-red-400/10 py-3 rounded-xl transition-all font-bold text-sm flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-trash-alt"></i> Eliminar Perfil e Dados
+                </button>
+              ) : (
+                <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-4">
+                  <p className="text-red-400 text-sm text-center font-bold">
+                    Tem a certeza? Esta ação apagará todas as apostas e projetos deste perfil.
+                  </p>
+                  <div className="flex gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="flex-1 py-2 text-slate-400 hover:text-white text-sm font-bold"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={onDeleteProfile}
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-bold text-sm shadow-lg shadow-red-500/20 transition-all active:scale-95"
+                    >
+                      Sim, Eliminar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
         </form>
