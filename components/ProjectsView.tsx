@@ -30,6 +30,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
     balizaZeroTargetMultiplier: 2.5,
     bankrollDivision: 10,
     nettunoInitialPercentage: 5,
+    nettunoCyclesCount: 5 as 5 | 10,
     startDate: new Date().toISOString().split('T')[0],
     description: '',
     projectType: 'STANDARD',
@@ -114,7 +115,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
           currentBankroll = proj.startBankroll + totalProfit;
           
           const profitRatio = 1.3107;
-          const maxCycleGoal = (proj.startBankroll * 4.65) * (1 + profitRatio);
+          const maxCycleMultiplier = proj.nettunoCyclesCount === 10 ? 8.65 : 4.65;
+          const maxCycleGoal = (proj.startBankroll * maxCycleMultiplier) * (1 + profitRatio);
 
           progress = Math.min(100, Math.max(0, (currentBankroll / maxCycleGoal) * 100));
           // Armazenar meta calculada para exibir no painel
@@ -174,6 +176,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
         balizaZeroTargetMultiplier: newProject.projectType === 'BALIZA_ZERO' && newProject.balizaZeroTargetMultiplier ? Number(newProject.balizaZeroTargetMultiplier) : undefined,
         bankrollDivision: newProject.projectType === 'BALIZA_ZERO' && newProject.bankrollDivision ? Number(newProject.bankrollDivision) : undefined,
         nettunoInitialPercentage: newProject.projectType === 'NETTUNO_CICLOS' && newProject.nettunoInitialPercentage ? Number(newProject.nettunoInitialPercentage) : undefined,
+        nettunoCyclesCount: newProject.projectType === 'NETTUNO_CICLOS' && newProject.nettunoCyclesCount ? newProject.nettunoCyclesCount : undefined,
         tag: newProject.tag ? newProject.tag.trim().toLowerCase() : undefined
       };
       
@@ -193,6 +196,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
     balizaZeroTargetMultiplier: 2.5,
         bankrollDivision: 10,
         nettunoInitialPercentage: 5,
+        nettunoCyclesCount: 5 as 5 | 10,
         startDate: new Date().toISOString().split('T')[0], 
         description: '', 
         projectType: 'STANDARD',
@@ -484,9 +488,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                    <label className="text-xs uppercase font-bold text-indigo-400 tracking-widest">% Alvo por Entrada (Inicial)</label>
                    <input type="number" step="0.1" required className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500" value={newProject.nettunoInitialPercentage} onChange={e => setNewProject({...newProject, nettunoInitialPercentage: Number(e.target.value)})} />
                  </div>
+                 <div className="space-y-2">
+                   <label className="text-xs uppercase font-bold text-indigo-400 tracking-widest">Número de Ciclos</label>
+                   <select className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500" value={newProject.nettunoCyclesCount} onChange={e => setNewProject({...newProject, nettunoCyclesCount: Number(e.target.value) as 5 | 10})}>
+                       <option value={5}>5 Ciclos</option>
+                       <option value={10}>10 Ciclos</option>
+                   </select>
+                 </div>
                  <div className="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl flex flex-col justify-center">
                     <h4 className="text-indigo-400 font-bold text-sm mb-1"><i className="fas fa-info-circle mr-2"></i>Método Ciclos</h4>
-                    <p className="text-slate-400 text-xs">As metas dos 5 ciclos serão calculadas automaticamente com base na banca de {newProject.startBankroll || 0}{currency} e alvo de {newProject.nettunoInitialPercentage || 5}%. As metas decrescem a cada aposta.</p>
+                    <p className="text-slate-400 text-xs">As metas dos {newProject.nettunoCyclesCount || 5} ciclos serão calculadas automaticamente com base na banca de {newProject.startBankroll || 0}{currency} e alvo de {newProject.nettunoInitialPercentage || 5}%. As metas decrescem a cada aposta.</p>
                  </div>
               </div>
             )}
@@ -564,7 +575,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, bets, onCreate, o
                 {proj.projectType === 'BALIZA_ZERO' && proj.stakeGoal ? (
                    <span>Meta Stake: {proj.stakeGoal}{currency}</span>
                 ) : proj.projectType === 'NETTUNO_CICLOS' ? (
-                   <span>Meta (Ciclo 5): {((proj as any)._calculatedNettunoGoal || 1075).toFixed(2)}{currency}</span>
+                   <span>Meta (Ciclo {proj.nettunoCyclesCount || 5}): {((proj as any)._calculatedNettunoGoal || 1075).toFixed(2)}{currency}</span>
                 ) : proj.goal ? (
                    <span>Meta: {proj.goal}{currency}</span>
                 ) : (

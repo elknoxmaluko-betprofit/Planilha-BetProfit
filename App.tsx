@@ -68,7 +68,8 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
           
           const nextProjects = prevProjects.map(proj => {
               if (proj.projectType === 'NETTUNO_CICLOS' && proj.status === 'ACTIVE') {
-                  const CYCLE_BANKS = [100, 100, 150, 250, 465];
+                  const cyclesCount = proj.nettunoCyclesCount || 5;
+                  const cycleBanks = cyclesCount === 10 ? [100, 100, 150, 150, 250, 250, 465, 465, 865, 865] : [100, 100, 150, 250, 465];
                   const ratio = proj.startBankroll / 100;
                   const profitRatio = 1.3107;
                   
@@ -76,8 +77,8 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
                                          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                   
                   let active = 0;
-                  const cycles = [0, 1, 2, 3, 4].map(idx => {
-                      const startBank = CYCLE_BANKS[idx] * ratio;
+                  const cycles = Array.from({ length: cyclesCount }).map((_, idx) => {
+                      const startBank = cycleBanks[idx] * ratio;
                       return {
                           startBank,
                           targetBank: startBank + (startBank * profitRatio),
@@ -87,11 +88,11 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
                   });
                   
                   sortedBets.forEach(bet => {
-                      if (active < 5) {
+                      if (active < cyclesCount) {
                           const cycle = cycles[active];
                           cycle.currentProfit += bet.profit;
                           cycle.currentBank = cycle.startBank + cycle.currentProfit;
-                          if (cycle.currentBank >= cycle.targetBank && active < 4) {
+                          if (cycle.currentBank >= cycle.targetBank && active < cyclesCount - 1) {
                               active++;
                           }
                       }
@@ -387,7 +388,8 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     
     const currentIndex = project.activeCycleIndex ?? 0;
     const nextIndex = currentIndex + 1;
-    if (nextIndex > 4) return; // Máximo 5 ciclos (0 a 4)
+    const maxIndex = (project.nettunoCyclesCount || 5) - 1;
+    if (nextIndex > maxIndex) return;
 
     // Atualizar índice do projeto
     updateProject(projectId, { activeCycleIndex: nextIndex });

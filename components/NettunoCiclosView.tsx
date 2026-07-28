@@ -29,10 +29,12 @@ const NettunoCiclosView: React.FC<NettunoCiclosViewProps> = ({ project, bets, on
   const { cycleData, currentActiveCycle } = useMemo(() => {
      const profitRatio = 1.3107; // 131.07% de lucro esperado no ciclo
      const ratio = project.startBankroll / 100;
+     const cyclesCount = project.nettunoCyclesCount || 5;
+     const cycleBanks = cyclesCount === 10 ? [100, 100, 150, 150, 250, 250, 465, 465, 865, 865] : [100, 100, 150, 250, 465];
 
-     // Inicializar os 5 ciclos
-     const cycles = [0, 1, 2, 3, 4].map(idx => {
-         const startBank = CYCLE_BANKS[idx] * ratio;
+     // Inicializar os ciclos
+     const cycles = Array.from({ length: cyclesCount }).map((_, idx) => {
+         const startBank = cycleBanks[idx] * ratio;
          return {
              idx,
              startBank,
@@ -48,19 +50,19 @@ const NettunoCiclosView: React.FC<NettunoCiclosViewProps> = ({ project, bets, on
      let active = 0;
 
      sortedBets.forEach(bet => {
-         if (active < 5) {
+         if (active < cyclesCount) {
              const cycle = cycles[active];
              cycle.bets.push(bet);
              cycle.currentProfit += bet.profit;
              cycle.currentBank = cycle.startBank + cycle.currentProfit;
              
-             if (cycle.currentBank >= cycle.targetBank && active < 4) {
+             if (cycle.currentBank >= cycle.targetBank && active < cyclesCount - 1) {
                  cycle.isCompleted = true;
                  active++;
              }
          } else {
              // Todas as apostas adicionais vão para o último ciclo
-             const cycle = cycles[4];
+             const cycle = cycles[cyclesCount - 1];
              cycle.bets.push(bet);
              cycle.currentProfit += bet.profit;
              cycle.currentBank = cycle.startBank + cycle.currentProfit;
@@ -75,7 +77,7 @@ const NettunoCiclosView: React.FC<NettunoCiclosViewProps> = ({ project, bets, on
      }));
 
      return { cycleData: finalCycles, currentActiveCycle: active };
-  }, [project.startBankroll, project.nettunoInitialPercentage, sortedBets]);
+  }, [project.startBankroll, project.nettunoInitialPercentage, project.nettunoCyclesCount, sortedBets]);
 
   useEffect(() => {
     setSelectedCycleIndex(currentActiveCycle);
@@ -191,7 +193,7 @@ const NettunoCiclosView: React.FC<NettunoCiclosViewProps> = ({ project, bets, on
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
         {/* Progresso Geral */}
-        <div className="grid grid-cols-5 gap-2 lg:gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 lg:gap-4 mb-8">
             {cycleData.map(c => (
                 <div 
                    key={c.idx}
