@@ -14,6 +14,11 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYear, selectedMonth, currency }) => {
+  const [selectedDays, setSelectedDays] = React.useState<number[]>([]);
+
+  React.useEffect(() => {
+    setSelectedDays([]);
+  }, [selectedYear, selectedMonth]);
   
   // Cálculos Auxiliares
   const { htCount, ftCount, avgWin, avgLoss, avgWinPct, avgLossPct, bestGreenPct, worstRedPct } = React.useMemo(() => {
@@ -59,6 +64,13 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       worstRedPct: worstRedPctVal
     };
   }, [bets]);
+
+  const toggleDay = (day: number | undefined) => {
+    if (!day) return;
+    setSelectedDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
 
   const calendarData = React.useMemo(() => {
     const month = selectedMonth !== undefined ? selectedMonth : new Date().getMonth();
@@ -146,6 +158,13 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
     ];
     return data;
   }, [bets]);
+
+  const selectedDaysProfit = React.useMemo(() => {
+    if (selectedDays.length === 0) return 0;
+    return calendarData
+      .filter(cell => cell.type === 'day' && cell.day && selectedDays.includes(cell.day))
+      .reduce((acc, cell) => acc + (cell.profit || 0), 0);
+  }, [selectedDays, calendarData]);
 
   const dailyEquityData = React.useMemo(() => {
     if (bets.length === 0) return [];
@@ -469,9 +488,20 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
             <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
               <i className="fas fa-calendar-day text-yellow-400 text-sm"></i> Performance Diária
             </h3>
-            <div className={`text-[10px] lg:text-xs font-bold px-3 py-1.5 rounded-xl border flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 ${stats.totalProfit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-              <span className="uppercase text-slate-500 tracking-wider">Mês:</span>
-              <span>{stats.totalProfit >= 0 ? '+' : ''}{(stats.monthlyStake > 0 ? (stats.totalProfit / stats.monthlyStake) * 100 : 0).toFixed(2)}%</span>
+            <div className="flex flex-col md:flex-row items-end md:items-center gap-2">
+              {selectedDays.length > 0 && (
+                <div className={`text-[10px] lg:text-xs font-bold px-3 py-1.5 rounded-xl border flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 ${selectedDaysProfit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                  <span className="uppercase text-slate-500 tracking-wider">Sel. ({selectedDays.length}d):</span>
+                  <span>{selectedDaysProfit >= 0 ? '+' : ''}{(stats.monthlyStake > 0 ? (selectedDaysProfit / stats.monthlyStake) * 100 : 0).toFixed(2)}%</span>
+                  <button onClick={() => setSelectedDays([])} className="ml-1 text-slate-400 hover:text-slate-200">
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              )}
+              <div className={`text-[10px] lg:text-xs font-bold px-3 py-1.5 rounded-xl border flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 ${stats.totalProfit >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                <span className="uppercase text-slate-500 tracking-wider">Mês:</span>
+                <span>{stats.totalProfit >= 0 ? '+' : ''}{(stats.monthlyStake > 0 ? (stats.totalProfit / stats.monthlyStake) * 100 : 0).toFixed(2)}%</span>
+              </div>
             </div>
           </div>
           <div className="w-full mt-4 max-w-5xl mx-auto">
@@ -486,8 +516,13 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                          return <div key={cell.id} className="aspect-square"></div>;
                      }
                      if (!cell.hasBets) {
+                         const isSelected = cell.day && selectedDays.includes(cell.day);
+                         const selectionClass = isSelected ? 'ring-2 ring-slate-400 ring-offset-2 ring-offset-slate-900 z-10' : '';
                          return (
-                             <div key={cell.id} className="bg-slate-800/30 rounded-lg p-1.5 md:p-2 aspect-square flex flex-col justify-between relative overflow-hidden border border-slate-800 shadow-sm hover:bg-slate-800/50 transition-colors">
+                             <div 
+                                onClick={() => toggleDay(cell.day)}
+                                key={cell.id} 
+                                className={`bg-slate-800/30 rounded-lg p-1.5 md:p-2 aspect-square flex flex-col justify-between relative overflow-hidden border border-slate-800 shadow-sm hover:bg-slate-800/50 transition-all cursor-pointer ${selectionClass}`}>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center opacity-5 pointer-events-none grayscale">
                                     <Logo size="sm" />
                                 </div>
@@ -498,9 +533,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
                      
                      const isPositive = cell.profit >= 0;
                      const bgColor = isPositive ? 'bg-[#10b981]' : 'bg-[#ef4444]';
+                     const isSelected = cell.day && selectedDays.includes(cell.day);
+                     const selectionClass = isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-105 z-10' : 'hover:scale-[1.02]';
 
                      return (
-                         <div key={cell.id} className={`${bgColor} text-white rounded-lg p-1 md:p-2 aspect-square flex flex-col justify-between shadow-sm`}>
+                         <div 
+                            onClick={() => toggleDay(cell.day)}
+                            key={cell.id} 
+                            className={`${bgColor} text-white rounded-lg p-1 md:p-2 aspect-square flex flex-col justify-between shadow-sm cursor-pointer transition-all ${selectionClass}`}>
                             <div className="flex justify-between items-start text-xs md:text-sm font-bold opacity-90 leading-none">
                                <span>{cell.day}</span>
                                <span>{cell.count} M.</span>
