@@ -1,13 +1,16 @@
 
 import React, { useMemo } from 'react';
 import { Bet, MarketStats, BetStatus } from '../types';
+import CategoryDetailsModal from './CategoryDetailsModal';
 
 interface MarketsViewProps {
+  monthlyStake: number;
   bets: Bet[];
   currency: string;
 }
 
-const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
+const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency, monthlyStake }) => {
+  const [viewingMarket, setViewingMarket] = React.useState<string | null>(null);
   const { marketStats, htProfit, ftProfit, htCount, ftCount } = useMemo(() => {
     const map: Record<string, any> = {};
     let htTotal = 0;
@@ -60,7 +63,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
           <div>
             <p className="text-white text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] mb-2">Total Lucro HT</p>
             <h3 className={`text-2xl lg:text-4xl font-mono font-black ${htProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {htProfit >= 0 ? '+' : ''}{htProfit.toFixed(2)}{currency}
+              {monthlyStake > 0 ? (htProfit >= 0 ? "+" : "") + (htProfit / monthlyStake * 100).toFixed(2) + "%" : "0.00%"}
             </h3>
             <p className="text-xs lg:text-sm text-slate-400 font-bold mt-4 border-t border-slate-800 pt-3 flex items-center gap-2">
               <i className="fas fa-hashtag opacity-50"></i> {htCount} Operações
@@ -75,7 +78,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
           <div>
             <p className="text-white text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] mb-2">Total Lucro FT</p>
             <h3 className={`text-2xl lg:text-4xl font-mono font-black ${ftProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {ftProfit >= 0 ? '+' : ''}{ftProfit.toFixed(2)}{currency}
+              {monthlyStake > 0 ? (ftProfit >= 0 ? "+" : "") + (ftProfit / monthlyStake * 100).toFixed(2) + "%" : "0.00%"}
             </h3>
             <p className="text-xs lg:text-sm text-slate-400 font-bold mt-4 border-t border-slate-800 pt-3 flex items-center gap-2">
               <i className="fas fa-hashtag opacity-50"></i> {ftCount} Operações
@@ -90,7 +93,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
       {/* Grid de Cards de Mercados */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {marketStats.map((market, idx) => (
-          <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 transition-all group relative overflow-hidden shadow-sm">
+          <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 hover:bg-slate-800/50 transition-all group relative overflow-hidden shadow-sm cursor-pointer" onClick={() => setViewingMarket(market.name)}>
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
               <i className={`fas ${market.name.toUpperCase().includes('FIRST HALF') ? 'fa-stopwatch' : 'fa-flag-checkered'} text-4xl`}></i>
             </div>
@@ -112,7 +115,7 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
               <div>
                 <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Líquido</p>
                 <p className={`font-mono font-bold ${market.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {market.profit >= 0 ? '+' : ''}{market.profit.toFixed(2)}{currency}
+                  {monthlyStake > 0 ? (market.profit >= 0 ? "+" : "") + (market.profit / monthlyStake * 100).toFixed(2) + "%" : "0.00%"}
                 </p>
               </div>
             </div>
@@ -138,6 +141,18 @@ const MarketsView: React.FC<MarketsViewProps> = ({ bets, currency }) => {
           </div>
         )}
       </div>
+      
+      {viewingMarket && (
+        <CategoryDetailsModal
+          title={viewingMarket}
+          icon={viewingMarket.toUpperCase().includes('FIRST HALF') ? 'fa-stopwatch' : 'fa-flag-checkered'}
+          bets={bets.filter(b => b.market === viewingMarket)}
+          currency={currency}
+          monthlyStake={monthlyStake}
+          onClose={() => setViewingMarket(null)}
+          type="methodology" 
+        />
+      )}
     </div>
   );
 };

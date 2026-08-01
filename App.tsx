@@ -16,6 +16,7 @@ import DatabaseManager from './components/DatabaseManager';
 import Logo from './components/Logo';
 import ProfileSettings from './components/ProfileSettings';
 import DuplicateModal from './components/DuplicateModal';
+import LadderView from './components/LadderView';
 
 // Inner component to handle data logic when user is authenticated
 const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (u: User) => void; onDeleteUser: (userId: string) => void }> = ({ user, onLogout, onUpdateUser, onDeleteUser }) => {
@@ -119,7 +120,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     const startYear = Math.max(2025, currentYear);
     return { month: now.getMonth(), year: startYear };
   });
-  const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data' | 'ladder'>('dashboard');
   const [showCSVModal, setShowCSVModal] = useState(false);
   const [editingBetId, setEditingBetId] = useState<string | null>(null);
 
@@ -559,6 +560,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
           <button onClick={() => handleViewChange('projects')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'projects' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-folder-open w-6"></i> Projetos
           </button>
+          
           <button onClick={() => handleViewChange('markets')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'markets' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-bullseye w-6"></i> Mercados
           </button>
@@ -579,6 +581,9 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
           </button>
           <button onClick={() => handleViewChange('add')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'add' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-plus-circle w-6"></i> Registar
+          </button>
+          <button onClick={() => handleViewChange('ladder')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'ladder' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <i className="fas fa-layer-group w-6"></i> Ladder
           </button>
         </div>
 
@@ -611,9 +616,9 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         <header className="mb-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-white capitalize">
-              {view === 'dashboard' ? 'Visão Geral' : view === 'annual' ? 'Visão Anual' : view === 'bets' ? 'Histórico' : view === 'markets' ? 'Análise de Mercados' : view === 'methodologies' ? 'Gestão de Métodos' : view === 'tags' ? 'Análise por Tags' : view === 'leagues' ? 'Campeonatos' : view === 'teams' ? 'Equipas' : view === 'projects' ? 'Gestão de Projetos' : view === 'data' ? 'Base de Dados' : 'Nova Entrada'}
+              {view === 'dashboard' ? 'Visão Geral' : view === 'annual' ? 'Visão Anual' : view === 'bets' ? 'Histórico' : view === 'markets' ? 'Análise de Mercados' : view === 'methodologies' ? 'Gestão de Métodos' : view === 'tags' ? 'Análise por Tags' : view === 'leagues' ? 'Campeonatos' : view === 'teams' ? 'Equipas' : view === 'projects' ? 'Gestão de Projetos' : view === 'ladder' ? 'Ladder Trading' : view === 'data' ? 'Base de Dados' : 'Nova Entrada'}
             </h2>
-            <p className="text-slate-400 text-lg mt-1">{view === 'annual' ? `Ano de ${selectedDate.year}` : `${months[selectedDate.month]} ${selectedDate.year}`}</p>
+            {view !== 'ladder' && <p className="text-slate-400 text-lg mt-1">{view === 'annual' ? `Ano de ${selectedDate.year}` : `${months[selectedDate.month]} ${selectedDate.year}`}</p>}
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -631,7 +636,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
               </select>
             </div>
 
-            {view !== 'annual' && view !== 'projects' && (
+            {view !== 'annual' && view !== 'projects' && view !== 'ladder' && (
               <>
                 <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl">
                    <label className="text-xs uppercase font-black text-slate-500 tracking-widest">Banca:</label>
@@ -646,6 +651,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
               </>
             )}
             
+            {view !== 'ladder' && (
             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl">
               <i className="fas fa-calendar-alt text-yellow-400 text-sm mr-1"></i>
               {view !== 'annual' && (
@@ -660,6 +666,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
                 {years.map(y => (<option key={y} value={y} className="bg-slate-900">{y}</option>))}
               </select>
             </div>
+            )}
 
             <button onClick={() => setShowCSVModal(true)} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-6 py-3 rounded-2xl font-bold border border-slate-700 text-sm transition-all">
                 <i className="fas fa-file-csv mr-2"></i> Importar CSV
@@ -670,12 +677,13 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         {view === 'dashboard' && <Dashboard stats={stats} bets={filteredBets} allBets={bets} selectedYear={selectedDate.year} selectedMonth={selectedDate.month} currency={currency} />}
         {view === 'annual' && <AnnualView bets={annualBets} selectedYear={selectedDate.year} monthlyBankrolls={monthlyBankrolls} monthlyStakes={monthlyStakes} currency={currency} />}
         {view === 'bets' && <BetList bets={filteredBets} onDelete={deleteBet} onEdit={(id) => { setEditingBetId(id); setView('add'); }} onUpdateBet={updateBet} monthlyStake={currentMonthlyStake} availableMethodologies={methodologiesList} availableTags={tagsList} availableLeagues={leaguesList} availableTeams={teamsList} currency={currency} />}
-        {view === 'markets' && <MarketsView bets={filteredBets} currency={currency} />}
-        {view === 'leagues' && <LeaguesView bets={filteredBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} onEdit={(oldName, newName) => handleRenameListItem('leagues', oldName, newName)} currency={currency} />}
-        {view === 'teams' && <TeamsView bets={filteredBets} availableTeams={teamsList} currency={currency} />}
-        {view === 'methodologies' && <MethodologiesView bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} onEdit={(oldName, newName) => handleRenameListItem('methodologies', oldName, newName)} currency={currency} />}
-        {view === 'tags' && <TagsView bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
+        {view === 'markets' && <MarketsView monthlyStake={currentMonthlyStake} bets={filteredBets} currency={currency} />}
+        {view === 'leagues' && <LeaguesView monthlyStake={currentMonthlyStake} bets={filteredBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} onEdit={(oldName, newName) => handleRenameListItem('leagues', oldName, newName)} currency={currency} />}
+        {view === 'teams' && <TeamsView monthlyStake={currentMonthlyStake} bets={filteredBets} availableTeams={teamsList} currency={currency} />}
+        {view === 'methodologies' && <MethodologiesView monthlyStake={currentMonthlyStake} bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} onEdit={(oldName, newName) => handleRenameListItem('methodologies', oldName, newName)} currency={currency} />}
+        {view === 'tags' && <TagsView monthlyStake={currentMonthlyStake} bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
         {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} onAdvanceProjectCycle={advanceProjectCycle} currency={currency} availableTags={tagsList} />}
+        {view === 'ladder' && <LadderView currency={currency} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects, currency }} onDataImport={handleDataImport} />}
         {view === 'add' && <BetForm onAdd={addBet} onCancel={() => { setView('dashboard'); setEditingBetId(null); }} monthlyStake={currentMonthlyStake} methodologies={methodologiesList} tags={tagsList} leagues={leaguesList} teams={teamsList} projects={projects} currency={currency} initialBet={bets.find(b => b.id === editingBetId)} />}
 

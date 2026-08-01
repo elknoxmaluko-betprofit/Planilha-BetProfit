@@ -1,9 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Bet, BetStatus } from '../types';
 import ConfirmModal from './ConfirmModal';
+import CategoryDetailsModal from './CategoryDetailsModal';
 import LogoEditModal from './LogoEditModal';
 
 interface LeaguesViewProps {
+  monthlyStake: number;
   bets: Bet[];
   available: string[];
   onCreate: (name: string) => void;
@@ -56,7 +58,7 @@ const LEAGUE_NAMES_MAP: Record<string, string> = {
   'brasileirão': 'Brasileirão Série A logo'
 };
 
-const LeagueBadge: React.FC<{ leagueName: string }> = ({ leagueName }) => {
+export const LeagueBadge: React.FC<{ leagueName: string; size?: "sm" | "md"; editable?: boolean }> = ({ leagueName, size = "md", editable = true }) => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
@@ -237,11 +239,12 @@ const LeagueBadge: React.FC<{ leagueName: string }> = ({ leagueName }) => {
   );
 };
 
-const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, onDelete, onEdit, currency }) => {
+const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, onDelete, onEdit, currency, monthlyStake }) => {
   const [newName, setNewName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deletingName, setDeletingName] = useState<string | null>(null);
+  const [viewingCategory, setViewingCategory] = useState<string | null>(null);
 
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -309,7 +312,10 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
           const roi = item.invested > 0 ? (item.profit / item.invested) * 100 : 0;
 
           return (
-            <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 transition-all group relative overflow-hidden shadow-sm">
+            <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 hover:bg-slate-800/50 transition-all group relative overflow-hidden shadow-sm cursor-pointer" onClick={(e) => {
+              if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('form') || (e.target as HTMLElement).closest('.group\\/badge') || (e.target as HTMLElement).closest('.group\\/edit')) return;
+              setViewingCategory(name);
+            }}>
               <div className="absolute top-5 right-5 z-10">
                  <LeagueBadge leagueName={name} />
               </div>
@@ -333,7 +339,7 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
                        />
                     </form>
                   ) : (
-                    <h3 className="font-bold text-white text-lg truncate flex-1 flex items-center gap-2 group/edit cursor-pointer" onClick={() => { setEditingName(name); setEditValue(name); }}>
+                    <h3 className="font-bold text-white text-lg truncate flex-1 flex items-center gap-2 group/edit cursor-pointer" onClick={(e) => { e.stopPropagation(); setEditingName(name); setEditValue(name); }}>
                       {name}
                       <i className="fas fa-pen text-[10px] text-slate-600 opacity-0 group-hover/edit:opacity-100 transition-opacity"></i>
                     </h3>
@@ -352,6 +358,7 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
                   <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Líquido</p>
                   <p className={`font-mono font-bold ${item.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {item.profit >= 0 ? '+' : ''}{item.profit.toFixed(2)}{currency}
+                    {monthlyStake > 0 && <span className="text-[10px] ml-1 opacity-70">({item.profit >= 0 ? '+' : ''}{(item.profit / monthlyStake * 100).toFixed(0)}%)</span>}
                   </p>
                 </div>
               </div>
@@ -372,6 +379,17 @@ const LeaguesView: React.FC<LeaguesViewProps> = ({ bets, available, onCreate, on
         })}
       </div>
       
+      {viewingCategory && (
+        <CategoryDetailsModal
+          title={viewingCategory}
+          icon="fa-trophy"
+          bets={bets.filter(b => (b.league || 'Sem Campeonato') === viewingCategory)}
+          currency={currency}
+          monthlyStake={monthlyStake}
+          onClose={() => setViewingCategory(null)}
+          type="league"
+        />
+      )}
       <ConfirmModal
         isOpen={deletingName !== null}
         title="Confirmar Eliminação"

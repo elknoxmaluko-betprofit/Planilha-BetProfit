@@ -1,8 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Bet, BetStatus } from '../types';
 import LogoEditModal from './LogoEditModal';
+import CategoryDetailsModal from './CategoryDetailsModal';
 
 interface TeamsViewProps {
+  monthlyStake: number;
   bets: Bet[];
   availableTeams: string[];
   currency: string;
@@ -172,7 +174,8 @@ export const TeamBadge: React.FC<{ teamName: string; size?: 'sm' | 'md'; editabl
   );
 };
 
-const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency }) => {
+const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency, monthlyStake }) => {
+  const [viewingCategory, setViewingCategory] = useState<string | null>(null);
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
     
@@ -238,7 +241,10 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency })
             const roi = item.invested > 0 ? (item.profit / item.invested) * 100 : 0;
 
             return (
-              <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 transition-all group relative overflow-hidden shadow-sm">
+              <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 hover:bg-slate-800/50 transition-all group relative overflow-hidden shadow-sm cursor-pointer" onClick={(e) => {
+                if ((e.target as HTMLElement).closest('.group\\/badge')) return;
+                setViewingCategory(name);
+              }}>
                 <div className="absolute top-5 right-5 z-10">
                    <TeamBadge teamName={name} />
                 </div>
@@ -260,8 +266,9 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency })
                   <div>
                     <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Líquido</p>
                     <p className={`font-mono font-bold ${item.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {item.profit >= 0 ? '+' : ''}{item.profit.toFixed(2)}{currency}
-                    </p>
+                    {item.profit >= 0 ? '+' : ''}{item.profit.toFixed(2)}{currency}
+                    {monthlyStake > 0 && <span className="text-[10px] ml-1 opacity-70">({item.profit >= 0 ? '+' : ''}{(item.profit / monthlyStake * 100).toFixed(0)}%)</span>}
+                  </p>
                   </div>
                 </div>
                 
@@ -281,6 +288,20 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency })
           })
         )}
       </div>
+      {viewingCategory && (
+        <CategoryDetailsModal
+          title={viewingCategory}
+          icon="fa-users"
+          bets={bets.filter(bet => {
+            const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i).map(p => p.trim().toLowerCase());
+            return parts.includes(viewingCategory.toLowerCase()) || bet.team === viewingCategory;
+          })}
+          currency={currency}
+          monthlyStake={monthlyStake}
+          onClose={() => setViewingCategory(null)}
+          type="team"
+        />
+      )}
     </div>
   );
 };

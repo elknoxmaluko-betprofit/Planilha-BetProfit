@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Bet, BetStatus } from '../types';
 import ConfirmModal from './ConfirmModal';
+import CategoryDetailsModal from './CategoryDetailsModal';
 
 interface MethodologiesViewProps {
+  monthlyStake: number;
   bets: Bet[];
   available: string[];
   onCreate: (name: string) => void;
@@ -11,11 +13,12 @@ interface MethodologiesViewProps {
   currency: string;
 }
 
-const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, onCreate, onDelete, onEdit, currency }) => {
+const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, onCreate, onDelete, onEdit, currency, monthlyStake }) => {
   const [newName, setNewName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deletingName, setDeletingName] = useState<string | null>(null);
+  const [viewingMethodology, setViewingMethodology] = useState<string | null>(null);
 
   const statsMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -87,7 +90,10 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
           const roi = item.invested > 0 ? (item.profit / item.invested) * 100 : 0;
 
           return (
-            <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 transition-all group relative overflow-hidden shadow-sm">
+            <div key={idx} className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl hover:border-slate-700 hover:bg-slate-800/50 transition-all group relative overflow-hidden shadow-sm cursor-pointer" onClick={(e) => {
+              if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('form') || (e.target as HTMLElement).closest('.group\\/edit')) return;
+              setViewingMethodology(name);
+            }}>
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
                  <i className="fas fa-microscope text-4xl"></i>
               </div>
@@ -116,7 +122,7 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
                        />
                     </form>
                   ) : (
-                    <h3 className="font-bold text-white text-lg truncate flex-1 flex items-center gap-2 group/edit cursor-pointer" onClick={() => { setEditingName(name); setEditValue(name); }}>
+                    <h3 className="font-bold text-white text-lg truncate flex-1 flex items-center gap-2 group/edit cursor-pointer" onClick={(e) => { e.stopPropagation(); setEditingName(name); setEditValue(name); }}>
                       {name}
                       <i className="fas fa-pen text-[10px] text-slate-600 opacity-0 group-hover/edit:opacity-100 transition-opacity"></i>
                     </h3>
@@ -135,6 +141,7 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
                   <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">P/L Líquido</p>
                   <p className={`font-mono font-bold ${item.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {item.profit >= 0 ? '+' : ''}{item.profit.toFixed(2)}{currency}
+                    {monthlyStake > 0 && <span className="text-[10px] ml-1 opacity-70">({item.profit >= 0 ? '+' : ''}{(item.profit / monthlyStake * 100).toFixed(0)}%)</span>}
                   </p>
                 </div>
               </div>
@@ -155,6 +162,17 @@ const MethodologiesView: React.FC<MethodologiesViewProps> = ({ bets, available, 
         })}
       </div>
       
+      {viewingMethodology && (
+        <CategoryDetailsModal
+          title={viewingMethodology}
+          icon="fa-flask"
+          bets={bets.filter(b => (b.methodology || 'Sem Método') === viewingMethodology)}
+          currency={currency}
+          monthlyStake={monthlyStake}
+          onClose={() => setViewingMethodology(null)}
+          type="methodology"
+        />
+      )}
       <ConfirmModal
         isOpen={deletingName !== null}
         title="Confirmar Eliminação"

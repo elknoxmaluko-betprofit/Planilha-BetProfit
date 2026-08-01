@@ -350,7 +350,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
              </h2>
              {stats.totalProfit !== 0 && (
                <span className={`px-4 py-2 rounded-xl font-bold text-sm lg:text-base border ${stats.totalProfit > 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                 {stats.totalProfit > 0 ? '+' : ''}{stats.totalProfit.toFixed(2)}{currency} P/L
+                 {stats.totalProfit > 0 ? '+' : ''}{stats.totalProfit.toFixed(2)}{currency} ({stats.totalProfit > 0 ? '+' : ''}{(stats.monthlyStake > 0 ? (stats.totalProfit / stats.monthlyStake) * 100 : 0).toFixed(1)}%) P/L
                </span>
              )}
           </div>
