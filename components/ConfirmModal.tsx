@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -11,9 +12,9 @@ interface ConfirmModalProps {
 const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onConfirm, onCancel }) => {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in-95 duration-200 text-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={onCancel}>
+      <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in-95 duration-200 text-center" onClick={(e) => e.stopPropagation()}>
         <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
           <i className="fas fa-exclamation-triangle text-3xl text-red-500"></i>
         </div>
@@ -36,7 +37,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onC
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

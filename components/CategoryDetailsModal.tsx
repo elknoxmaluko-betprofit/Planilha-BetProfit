@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Bet, BetStatus } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TeamBadge } from './TeamsView';
@@ -16,6 +17,13 @@ interface CategoryDetailsModalProps {
 }
 
 const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon, bets, currency, monthlyStake, onClose, type = "methodology" }) => {
+  const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  let subtitle = "Análise detalhada";
+  if (bets.length > 0) {
+    const d = new Date(bets[0].date);
+    subtitle = `Análise detalhada em ${monthNames[d.getMonth()]} de ${d.getFullYear()}`;
+  }
+  
   const sortedBets = useMemo(() => [...bets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [bets]);
 
   const stats = useMemo(() => {
@@ -27,8 +35,8 @@ const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon
     let peak = 0;
     let currentBalance = 0;
     
-    const winningBets = [];
-    const losingBets = [];
+    const winningBets: number[] = [];
+    const losingBets: number[] = [];
 
     const dailyMap: Record<string, number> = {};
     let currentBalancePct = 0;
@@ -50,7 +58,7 @@ const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon
         if (b.status === BetStatus.WON) {
             won += 1;
             winningBets.push(pctProfit);
-        } else if (b.status === BetStatus.LOST || b.status === BetStatus.HALF_LOST) {
+        } else if (b.status === BetStatus.LOST ) {
             losingBets.push(pctProfit);
         }
       }
@@ -113,11 +121,11 @@ const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon
     return null;
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       {/* Mantém o logotipo visível sobre o fundo sombreado */}
       <div className="fixed top-6 left-6 hidden lg:flex items-center gap-3 z-[110] pointer-events-none">
-        <Logo size="lg" />
+        <Logo size="sm" />
         <h1 className="text-2xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
       </div>
       <div className="bg-[#0f172a] border border-slate-800 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
@@ -134,7 +142,7 @@ const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon
                 <i className={`fas ${icon} text-yellow-400`}></i>
               )} {title}
             </h2>
-            <p className="text-slate-400 text-sm mt-1">Análise detalhada no mês atual</p>
+            <p className="text-slate-400 text-sm mt-1">{subtitle}</p>
           </div>
           <button 
             onClick={onClose}
@@ -268,7 +276,8 @@ const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
