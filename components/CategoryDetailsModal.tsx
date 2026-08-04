@@ -123,11 +123,7 @@ const CategoryDetailsModal: React.FC<CategoryDetailsModalProps> = ({ title, icon
 
   return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      {/* Mantém o logotipo visível sobre o fundo sombreado */}
-      <div className="fixed top-6 left-6 hidden lg:flex items-center gap-3 z-[110] pointer-events-none">
-        <Logo size="sm" />
-        <h1 className="text-2xl font-bold tracking-tight text-white">Bet<span className="text-yellow-400">Profit</span></h1>
-      </div>
+
       <div className="bg-[#0f172a] border border-slate-800 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}

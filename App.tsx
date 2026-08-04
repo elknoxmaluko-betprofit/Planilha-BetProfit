@@ -451,18 +451,26 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   }, [bets, selectedDate.year]);
 
   const teamsList = useMemo(() => {
-    const teams = new Set<string>();
+    const teamsMap = new Map<string, string>();
     bets.forEach(bet => {
       const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i);
       parts.forEach(p => {
         const trimmed = p.trim();
         if (trimmed && trimmed.length > 1) {
-          teams.add(trimmed);
+          const lower = trimmed.toLowerCase();
+          if (!teamsMap.has(lower)) {
+            teamsMap.set(lower, trimmed);
+          }
         }
       });
-      if (bet.team) teams.add(bet.team);
+      if (bet.team) {
+        const lowerTeam = bet.team.trim().toLowerCase();
+        if (!teamsMap.has(lowerTeam)) {
+            teamsMap.set(lowerTeam, bet.team.trim());
+        }
+      }
     });
-    return Array.from(teams).sort();
+    return Array.from(teamsMap.values()).sort();
   }, [bets]);
 
   const stats: Stats = useMemo(() => {

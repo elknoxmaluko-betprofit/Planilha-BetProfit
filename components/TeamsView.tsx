@@ -189,7 +189,7 @@ const TeamsView: React.FC<TeamsViewProps> = ({ bets, availableTeams, currency, m
       bets.forEach(bet => {
         const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i).map(p => p.trim().toLowerCase());
         const isInEvent = parts.includes(teamName.toLowerCase());
-        const isSelectedTeam = bet.team === teamName;
+        const isSelectedTeam = bet.team?.trim().toLowerCase() === teamName.toLowerCase();
 
         if (isInEvent || isSelectedTeam) {
           const m = map[teamName];

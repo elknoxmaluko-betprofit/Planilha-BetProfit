@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       // The application code uses process.env.API_KEY per the SDK guidelines.
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
       // Polyfill to prevent "process is not defined" errors if libraries access it directly
-      'process.env': {},
+      
     },
     build: {
       outDir: 'dist',

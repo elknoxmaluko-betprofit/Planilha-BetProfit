@@ -197,26 +197,27 @@ const AnnualView: React.FC<AnnualViewProps> = ({ bets, selectedYear, monthlyBank
   }, [bets]);
 
   const teamPerformanceData = React.useMemo(() => {
-    const teamStats: Record<string, number> = {};
+    const teamStats: Record<string, { profit: number, display: string }> = {};
     
     bets.forEach(bet => {
       const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i);
-      const teamsInBet = new Set<string>();
+      const teamsInBet = new Map<string, string>();
       
       parts.forEach(p => {
         const trimmed = p.trim();
-        if (trimmed && trimmed.length > 1) teamsInBet.add(trimmed);
+        if (trimmed && trimmed.length > 1) teamsInBet.set(trimmed.toLowerCase(), trimmed);
       });
       
-      if (bet.team) teamsInBet.add(bet.team);
+      if (bet.team) teamsInBet.set(bet.team.trim().toLowerCase(), bet.team.trim());
 
-      teamsInBet.forEach(team => {
-        teamStats[team] = (teamStats[team] || 0) + bet.profit;
+      teamsInBet.forEach((display, lower) => {
+        if (!teamStats[lower]) teamStats[lower] = { profit: 0, display };
+        teamStats[lower].profit += bet.profit;
       });
     });
 
-    const sorted = Object.entries(teamStats)
-      .map(([name, profit]) => ({ name, profit: parseFloat(profit.toFixed(2)) }))
+    const sorted = Object.values(teamStats)
+      .map(({ display, profit }) => ({ name: display, profit: parseFloat(profit.toFixed(2)) }))
       .sort((a, b) => b.profit - a.profit);
 
     return { 
@@ -696,7 +697,7 @@ const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: s
       <i className={`fas ${icon}`} style={{ color }}></i> {title}
     </h3>
     <div className="h-[200px] lg:h-[280px]">
-      {data.length > 0 ? (
+      {data && data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 30, right: 30 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
