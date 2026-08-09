@@ -49,6 +49,16 @@ export interface Bet {
   projectId?: string;
   dezenaIndex?: number; // Novo: Índice da dezena a que esta aposta pertence
   cycleIndex?: number; // Índice do ciclo a que esta aposta pertence (NETTUNO_CICLOS)
+  
+  // Novos campos para Anotações
+  homeScore?: string;
+  awayScore?: string;
+  operationMoment?: string;
+  redForm?: string;
+  goalForm?: string;
+  goalMoment?: string;
+  evaluation?: 'OK' | 'RUIM' | 'PÉSSIMO' | '';
+  notes?: string;
 }
 
 export interface Stats {
