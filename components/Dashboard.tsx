@@ -199,9 +199,10 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
   }, [bets, stats.monthlyStake]);
 
   const teamPerformanceData = React.useMemo(() => {
-    const teamStats: Record<string, { profit: number, display: string }> = {};
+    const teamStats: Record<string, { profit: number, invested: number, display: string }> = {};
     
     bets.forEach(bet => {
+      if (bet.status === BetStatus.PENDING) return;
       const parts = bet.event.split(/\s+(?:vs|v|@|-|(?<!\d)\/(?!\d))\s+/i);
       const teamsInBet = new Map<string, string>();
       parts.forEach(p => {
@@ -211,35 +212,45 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
       if (bet.team) teamsInBet.set(bet.team.trim().toLowerCase(), bet.team.trim());
 
       teamsInBet.forEach((display, lower) => {
-        if (!teamStats[lower]) teamStats[lower] = { profit: 0, display };
+        if (!teamStats[lower]) teamStats[lower] = { profit: 0, invested: 0, display };
         teamStats[lower].profit += bet.profit;
+        teamStats[lower].invested += bet.stake;
       });
     });
 
     const sortedTeams = Object.values(teamStats)
-      .map(({ display, profit }) => ({ name: display, profit: parseFloat(profit.toFixed(2)) }))
+      .map(({ display, profit, invested }) => {
+        const yieldPercent = invested > 0 ? (profit / invested) * 100 : 0;
+        return { name: display, profit: parseFloat(yieldPercent.toFixed(2)), rawProfit: profit };
+      })
       .sort((a, b) => b.profit - a.profit);
 
     return {
-      winners: sortedTeams.filter(t => t.profit > 0).slice(0, 5),
-      losers: [...sortedTeams].reverse().filter(t => t.profit < 0).slice(0, 5)
+      winners: sortedTeams.filter(t => t.rawProfit > 0).sort((a, b) => b.profit - a.profit).slice(0, 5),
+      losers: sortedTeams.filter(t => t.rawProfit < 0).sort((a, b) => a.profit - b.profit).slice(0, 5)
     };
   }, [bets]);
 
   const leaguePerformanceData = React.useMemo(() => {
-    const leagueStats: Record<string, number> = {};
+    const leagueStats: Record<string, { profit: number, invested: number }> = {};
     
     bets.forEach(bet => {
+      if (bet.status === BetStatus.PENDING) return;
       const league = bet.league || 'Outros';
-      leagueStats[league] = (leagueStats[league] || 0) + bet.profit;
+      if (!leagueStats[league]) leagueStats[league] = { profit: 0, invested: 0 };
+      leagueStats[league].profit += bet.profit;
+      leagueStats[league].invested += bet.stake;
     });
 
     const sortedLeagues = Object.entries(leagueStats)
-      .map(([name, profit]) => ({ name, profit: parseFloat(profit.toFixed(2)) }))
+      .map(([name, stats]) => {
+        const yieldPercent = stats.invested > 0 ? (stats.profit / stats.invested) * 100 : 0;
+        return { name, profit: parseFloat(yieldPercent.toFixed(2)), rawProfit: stats.profit };
+      })
       .sort((a, b) => b.profit - a.profit);
 
-    const winners = sortedLeagues.filter(l => l.profit > 0).slice(0, 5);
-    const losers = [...sortedLeagues].reverse().filter(l => l.profit < 0).slice(0, 5);
+    const winners = sortedLeagues.filter(l => l.rawProfit > 0).sort((a, b) => b.profit - a.profit).slice(0, 5);
+    const losers = sortedLeagues.filter(l => l.rawProfit < 0).sort((a, b) => a.profit - b.profit).slice(0, 5);
 
     return { winners, losers };
   }, [bets]);
@@ -874,6 +885,19 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, bets, allBets, selectedYea
 
 // Componentes Auxiliares
 
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl shadow-lg">
+        <p className="text-slate-200 font-bold mb-1">{label}</p>
+        <p className="text-emerald-400 font-mono text-sm">Yield: {payload[0].value}%</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: string; alignRight?: boolean }> = ({ title, data, color, icon, alignRight }) => (
   <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-5 lg:p-8 shadow-md">
     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
@@ -882,12 +906,39 @@ const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: s
     <div className="h-[200px] lg:h-[250px]">
       {data && data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: alignRight ? 20 : 0, right: alignRight ? 0 : 20, top: 0, bottom: 0 }}>
+          <BarChart data={data} layout="vertical" margin={{ left: alignRight ? 40 : 0, right: alignRight ? 0 : 40, top: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
             <XAxis type="number" hide />
             <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} width={80} orientation={alignRight ? 'right' : 'left'} />
-            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px' }} cursor={{ fill: '#1e293b', opacity: 0.2 }} />
-            <Bar dataKey="profit" fill={color} radius={alignRight ? [4, 0, 0, 4] : [0, 4, 4, 0]} barSize={16} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.2 }} />
+            <Bar dataKey="profit" fill={color} radius={alignRight ? [4, 0, 0, 4] : [0, 4, 4, 0]} barSize={16}>
+               <LabelList 
+                dataKey="profit" 
+                content={(props: any) => {
+                  const { x, y, width, height, value } = props;
+                  const leftmost = Math.min(x, x + width);
+                  const rightmost = Math.max(x, x + width);
+                  
+                  // For alignRight (negative values), the tip is on the left
+                  // For normal (positive values), the tip is on the right
+                  const textX = alignRight ? leftmost - 5 : rightmost + 5;
+                  const textY = y + height / 2;
+                  return (
+                    <text 
+                      x={textX} 
+                      y={textY} 
+                      dy={3} 
+                      fill="#94a3b8" 
+                      fontSize={10} 
+                      fontWeight="bold" 
+                      textAnchor={alignRight ? 'end' : 'start'}
+                    >
+                      {value}%
+                    </text>
+                  );
+                }} 
+              />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       ) : (
@@ -895,6 +946,4 @@ const RankingCard: React.FC<{ title: string; data: any[]; color: string; icon: s
       )}
     </div>
   </div>
-);
-
-export default Dashboard;
+);export default Dashboard;
