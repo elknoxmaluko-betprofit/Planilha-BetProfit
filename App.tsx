@@ -121,7 +121,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
     const startYear = Math.max(2025, currentYear);
     return { month: now.getMonth(), year: startYear };
   });
-  const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'notes' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data' | 'ladder'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'annual' | 'bets' | 'notes' | 'add' | 'markets' | 'methodologies' | 'tags' | 'leagues' | 'teams' | 'projects' | 'data' | 'ladder' | 'annual_markets' | 'annual_methodologies' | 'annual_tags' | 'annual_leagues' | 'annual_teams'>('dashboard');
   const [showCSVModal, setShowCSVModal] = useState(false);
   const [editingBetId, setEditingBetId] = useState<string | null>(null);
 
@@ -130,6 +130,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
   const [currentDuplicateConflict, setCurrentDuplicateConflict] = useState<{ newBet: Bet, existingBet: Bet } | null>(null);
   const [hideBankroll, setHideBankroll] = useState(() => { try { const stored = localStorage.getItem('betprofit_hide_bankroll'); return stored ? JSON.parse(stored) : false; } catch (e) { return false; } });
   const [hideStake, setHideStake] = useState(() => { try { const stored = localStorage.getItem('betprofit_hide_stake'); return stored ? JSON.parse(stored) : false; } catch (e) { return false; } });
+  const [isAnnualMenuOpen, setIsAnnualMenuOpen] = useState(false);
 
   const isDuplicate = (bet1: Bet, bet2: Bet) => {
       if (bet1.id === bet2.id) return false;
@@ -559,6 +560,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         </button>
 
         <div className="space-y-2 overflow-y-auto flex-1 scrollbar-none">
+
           <button onClick={() => handleViewChange('dashboard')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'dashboard' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-chart-pie w-6"></i> Dashboard
           </button>
@@ -583,11 +585,45 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
           <button onClick={() => handleViewChange('tags')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'tags' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-tags w-6"></i> Tags
           </button>
+
+          {/* Menu Anual com Sub-menus */}
+          <div className="flex flex-col gap-1">
+            <button 
+              onClick={() => {
+                handleViewChange('annual');
+                setIsAnnualMenuOpen(!isAnnualMenuOpen);
+              }} 
+              className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all text-lg ${view === 'annual' || view.startsWith('annual_') ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <div className="flex items-center gap-4">
+                <i className="fas fa-calendar w-6"></i> Anual
+              </div>
+              <i className={`fas fa-chevron-${isAnnualMenuOpen ? 'up' : 'down'} text-sm opacity-70`}></i>
+            </button>
+            
+            {isAnnualMenuOpen && (
+              <div className="flex flex-col gap-1 ml-6 pl-4 border-l-2 border-slate-800/50 mt-1 mb-2">
+                <button onClick={() => handleViewChange('annual_markets')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-base ${view === 'annual_markets' ? 'text-yellow-400 font-bold' : 'text-slate-400 hover:text-white'}`}>
+                  <i className="fas fa-bullseye w-5"></i> Mercados
+                </button>
+                <button onClick={() => handleViewChange('annual_leagues')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-base ${view === 'annual_leagues' ? 'text-yellow-400 font-bold' : 'text-slate-400 hover:text-white'}`}>
+                  <i className="fas fa-trophy w-5"></i> Campeonatos
+                </button>
+                <button onClick={() => handleViewChange('annual_teams')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-base ${view === 'annual_teams' ? 'text-yellow-400 font-bold' : 'text-slate-400 hover:text-white'}`}>
+                  <i className="fas fa-users w-5"></i> Equipas
+                </button>
+                <button onClick={() => handleViewChange('annual_methodologies')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-base ${view === 'annual_methodologies' ? 'text-yellow-400 font-bold' : 'text-slate-400 hover:text-white'}`}>
+                  <i className="fas fa-flask w-5"></i> Métodos
+                </button>
+                <button onClick={() => handleViewChange('annual_tags')} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-base ${view === 'annual_tags' ? 'text-yellow-400 font-bold' : 'text-slate-400 hover:text-white'}`}>
+                  <i className="fas fa-tags w-5"></i> Tags
+                </button>
+              </div>
+            )}
+          </div>
+
           <button onClick={() => handleViewChange('projects')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'projects' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-folder-open w-6"></i> Projetos
-          </button>
-          <button onClick={() => handleViewChange('annual')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'annual' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <i className="fas fa-calendar w-6"></i> Anual
           </button>
           <button onClick={() => handleViewChange('add')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'add' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-plus-circle w-6"></i> Nova Entrada
@@ -598,8 +634,8 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
           <button onClick={() => handleViewChange('data')} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-lg ${view === 'data' ? 'bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-400/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <i className="fas fa-database w-6"></i> Dados
           </button>
-        </div>
 
+        </div>
         <div className="mt-auto pt-6 border-t border-slate-800">
            <div 
             className="flex items-center gap-3 px-2 mb-4 cursor-pointer hover:bg-slate-800/50 p-2 rounded-xl transition-all group"
@@ -629,9 +665,9 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         <header className="mb-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
           <div className="flex-1">
             <h2 className="text-3xl font-bold text-white capitalize">
-              {view === 'dashboard' ? 'Visão Geral' : view === 'annual' ? 'Visão Anual' : view === 'bets' ? 'Histórico' : view === 'notes' ? 'Anotações' : view === 'markets' ? 'Análise de Mercados' : view === 'methodologies' ? 'Gestão de Métodos' : view === 'tags' ? 'Análise por Tags' : view === 'leagues' ? 'Campeonatos' : view === 'teams' ? 'Equipas' : view === 'projects' ? 'Gestão de Projetos' : view === 'ladder' ? 'Ladder Trading' : view === 'data' ? 'Base de Dados' : 'Nova Entrada'}
+              {view === 'dashboard' ? 'Visão Geral' : view === 'annual' ? 'Visão Anual' : view === 'bets' ? 'Histórico' : view === 'notes' ? 'Anotações' : view === 'markets' ? 'Análise de Mercados' : view === 'methodologies' ? 'Gestão de Métodos' : view === 'tags' ? 'Análise por Tags' : view === 'leagues' ? 'Campeonatos' : view === 'teams' ? 'Equipas' : view === 'projects' ? 'Gestão de Projetos' : view === 'ladder' ? 'Ladder Trading' : view === 'data' ? 'Base de Dados' : view.startsWith('annual_') ? (view.replace('annual_', '') === 'markets' ? 'Análise de Mercados (Anual)' : view.replace('annual_', '') === 'methodologies' ? 'Gestão de Métodos (Anual)' : view.replace('annual_', '') === 'tags' ? 'Análise por Tags (Anual)' : view.replace('annual_', '') === 'leagues' ? 'Campeonatos (Anual)' : 'Equipas (Anual)') : 'Nova Entrada'}
             </h2>
-            {view !== 'ladder' && <p className="text-slate-400 text-lg mt-1">{view === 'annual' ? `Ano de ${selectedDate.year}` : `${months[selectedDate.month]} ${selectedDate.year}`}</p>}
+            {view !== 'ladder' && <p className="text-slate-400 text-lg mt-1">{view === 'annual' || view.startsWith('annual_') ? `Ano de ${selectedDate.year}` : `${months[selectedDate.month]} ${selectedDate.year}`}</p>}
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -649,7 +685,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
               </select>
             </div>
 
-            {view !== 'annual' && view !== 'projects' && view !== 'ladder' && (
+            {view !== 'annual' && !view.startsWith('annual_') && view !== 'projects' && view !== 'ladder' && (
               <>
                 <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl">
                    <label className="text-xs uppercase font-black text-slate-500 tracking-widest">Banca:</label>
@@ -681,7 +717,7 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
             {view !== 'ladder' && (
             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl">
               <i className="fas fa-calendar-alt text-yellow-400 text-sm mr-1"></i>
-              {view !== 'annual' && (
+              {view !== 'annual' && !view.startsWith('annual_') && (
                 <>
                   <select className="bg-transparent border-none text-white font-bold text-sm focus:ring-0 cursor-pointer" value={selectedDate.month} onChange={(e) => setSelectedDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}>
                     {months.map((m, i) => (<option key={i} value={i} className="bg-slate-900">{m}</option>))}
@@ -710,6 +746,13 @@ const BetProfitApp: React.FC<{ user: User; onLogout: () => void; onUpdateUser: (
         {view === 'teams' && <TeamsView monthlyStake={currentMonthlyStake} bets={filteredBets} availableTeams={teamsList} currency={currency} />}
         {view === 'methodologies' && <MethodologiesView monthlyStake={currentMonthlyStake} bets={filteredBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} onEdit={(oldName, newName) => handleRenameListItem('methodologies', oldName, newName)} currency={currency} />}
         {view === 'tags' && <TagsView monthlyStake={currentMonthlyStake} bets={filteredBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
+
+        {/* ANNUAL VIEWS */}
+        {view === 'annual_markets' && <MarketsView monthlyStake={currentMonthlyStake} bets={annualBets} currency={currency} />}
+        {view === 'annual_leagues' && <LeaguesView monthlyStake={currentMonthlyStake} bets={annualBets} available={leaguesList} onCreate={(l) => handleUpdateList('leagues', [...leaguesList, l])} onDelete={(l) => handleUpdateList('leagues', leaguesList.filter(x => x !== l))} onEdit={(oldName, newName) => handleRenameListItem('leagues', oldName, newName)} currency={currency} />}
+        {view === 'annual_teams' && <TeamsView monthlyStake={currentMonthlyStake} bets={annualBets} availableTeams={teamsList} currency={currency} />}
+        {view === 'annual_methodologies' && <MethodologiesView monthlyStake={currentMonthlyStake} bets={annualBets} available={methodologiesList} onCreate={(m) => handleUpdateList('methodologies', [...methodologiesList, m])} onDelete={(m) => handleUpdateList('methodologies', methodologiesList.filter(x => x !== m))} onEdit={(oldName, newName) => handleRenameListItem('methodologies', oldName, newName)} currency={currency} />}
+        {view === 'annual_tags' && <TagsView monthlyStake={currentMonthlyStake} bets={annualBets} available={tagsList} onCreate={(t) => handleUpdateList('tags', [...tagsList, t])} onDelete={(t) => handleUpdateList('tags', tagsList.filter(x => x !== t))} onEdit={(oldName, newName) => handleRenameListItem('tags', oldName, newName)} currency={currency} />}
         {view === 'projects' && <ProjectsView projects={projects} bets={bets} onCreate={createProject} onDelete={deleteProject} onUpdate={updateProject} onAssignBets={assignBetsToProject} onAdvanceProjectDezena={advanceProjectDezena} onAdvanceProjectCycle={advanceProjectCycle} currency={currency} availableTags={tagsList} />}
         {view === 'ladder' && <LadderView currency={currency} />}
         {view === 'data' && <DatabaseManager currentData={{ bets, monthlyStakes, monthlyBankrolls, methodologies: methodologiesList, tags: tagsList, leagues: leaguesList, teams: teamsList, projects, currency }} onDataImport={handleDataImport} />}
